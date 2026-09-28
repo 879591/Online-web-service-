@@ -1,0 +1,663 @@
+{
+  "orders": [
+    {
+      "id": "ORD-783327",
+      "clientName": "Test Customer",
+      "brandName": "Test Customer",
+      "whatsapp": "+919876543210",
+      "email": "",
+      "serviceId": "ecommerce-website",
+      "serviceName": "E-commerce Website",
+      "packageName": "GROWTH",
+      "projectDescription": "E-commerce store for handmade craft items",
+      "requiredFeatures": [],
+      "referenceWebsite": "",
+      "budget": "₹12,499",
+      "deadline": "Standard Delivery",
+      "additionalNotes": "",
+      "fileReferenceUrl": "",
+      "createdAt": "2026-09-28T15:16:29.409Z",
+      "updatedAt": "2026-09-28T15:16:29.409Z",
+      "status": "Order Received",
+      "price": "₹12,499",
+      "paymentStatus": "Pending",
+      "history": [
+        {
+          "stage": "Order Received",
+          "timestamp": "2026-09-28T15:16:29.409Z",
+          "note": "Order registered successfully. Requirement review initiated by Suraj Maurya."
+        }
+      ]
+    },
+    {
+      "id": "ORD-729410",
+      "clientName": "Rahul Sharma",
+      "brandName": "Sharma Dental Clinic",
+      "whatsapp": "+91 9876500001",
+      "email": "rahul.dental@sample.com",
+      "serviceId": "business-website",
+      "serviceName": "Business Website",
+      "packageName": "GROWTH",
+      "projectDescription": "Clean 6-page dental clinic portal with appointment booking inquiry, doctor profile, patient reviews, and Google Maps integration.",
+      "requiredFeatures": [
+        "Appointment Booking Form",
+        "Google Maps Location",
+        "Mobile Responsive",
+        "WhatsApp Quick Chat"
+      ],
+      "referenceWebsite": "https://sample-dental-clinic.demo",
+      "budget": "₹11,999",
+      "deadline": "7 Days",
+      "additionalNotes": "Need calming light blue and white theme with professional clinical imagery.",
+      "createdAt": "2026-09-25T15:16:11.382Z",
+      "updatedAt": "2026-09-27T15:16:11.382Z",
+      "status": "Design/Development",
+      "price": "₹11,999",
+      "paidAmount": "₹6,000 (Advance 50%)",
+      "paymentStatus": "Verified",
+      "paymentReference": "UPI-UTR-938210482910",
+      "paymentSubmissionDate": "2026-09-26T15:16:11.382Z",
+      "paymentVerifiedDate": "2026-09-26T15:16:11.382Z",
+      "paymentAdminNote": "Advance payment of ₹6,000 verified manually via PhonePe IMPS.",
+      "clientNotes": "Homepage wireframe and service section developed. Currently coding appointment section.",
+      "internalNotes": "Client approved color palette. Need to link clinic WhatsApp on form submission.",
+      "deliveryUrl": "https://dental-clinic-demo.preview.dev",
+      "history": [
+        {
+          "stage": "Order Received",
+          "timestamp": "2026-09-25T15:16:11.382Z",
+          "note": "Order placed by client via online order form."
+        },
+        {
+          "stage": "Requirement Review",
+          "timestamp": "2026-09-25T16:16:11.382Z",
+          "note": "Requirements reviewed. Scope confirmed for 6 pages."
+        },
+        {
+          "stage": "Payment Pending",
+          "timestamp": "2026-09-25T17:16:11.382Z",
+          "note": "Direct UPI instructions shared. Advance 50% requested."
+        },
+        {
+          "stage": "Payment Verified",
+          "timestamp": "2026-09-26T15:16:11.382Z",
+          "note": "Advance payment verified manually by Suraj Maurya."
+        },
+        {
+          "stage": "Work Started",
+          "timestamp": "2026-09-26T15:46:11.382Z",
+          "note": "Design mockups and code repository initiated."
+        },
+        {
+          "stage": "Design/Development",
+          "timestamp": "2026-09-27T15:16:11.382Z",
+          "note": "Responsive pages in development. Live preview provided."
+        }
+      ]
+    }
+  ],
+  "leads": [
+    {
+      "id": "LD-7155",
+      "name": "Test Customer",
+      "phone": "+919876543210",
+      "email": "",
+      "service": "E-commerce Website",
+      "budget": "₹12,499",
+      "message": "Order submitted (#ORD-783327): E-commerce store for handmade craft items...",
+      "date": "2026-09-28T15:16:29.409Z",
+      "status": "New",
+      "notes": "Associated with Order ORD-783327"
+    },
+    {
+      "id": "LD-4021",
+      "name": "Amit Verma",
+      "phone": "+91 9822114455",
+      "email": "amit.verma@example.com",
+      "service": "Landing Page",
+      "budget": "₹4,000 - ₹8,000",
+      "message": "Need high-converting landing page for our upcoming fitness workshop in Mumbai.",
+      "date": "2026-09-27T15:16:11.382Z",
+      "status": "Interested",
+      "notes": "Called on WhatsApp. Sent Starter & Growth package details."
+    },
+    {
+      "id": "LD-4022",
+      "name": "Pooja Gupta",
+      "phone": "+91 9711223344",
+      "email": "pooja.creatives@example.com",
+      "service": "Online Course Website",
+      "budget": "₹15,000 - ₹25,000",
+      "message": "Looking for a clean platform to sell my watercolor art recorded lessons.",
+      "date": "2026-09-26T15:16:11.382Z",
+      "status": "Proposal Sent",
+      "notes": "Proposal sent with LMS curriculum sample and direct UPI workflow."
+    }
+  ],
+  "quotes": [
+    {
+      "id": "QT-8103",
+      "name": "Vikas Malhotra",
+      "email": "vikas@apexlogistics.in",
+      "whatsapp": "+91 9988776655",
+      "service": "Custom Digital Solutions",
+      "scopeDescription": "Multi-branch logistics tracking portal where customers can check consignment status and drivers update pickup timestamps.",
+      "targetBudget": "₹25,000 - ₹35,000",
+      "targetDeadline": "2 Weeks",
+      "status": "Proposal Prepared",
+      "adminQuotePrice": "₹28,500",
+      "adminEstimatedTimeline": "12 - 14 Days",
+      "adminScopeNotes": "Includes React frontend + Node.js backend + Admin dispatch console + WhatsApp status dispatch.",
+      "createdAt": "2026-09-27T15:16:11.382Z"
+    }
+  ],
+  "services": [
+    {
+      "id": "business-website",
+      "name": "Business Website",
+      "tagline": "High-converting corporate & local business web portals",
+      "description": "Modern, fast, and mobile-first website tailored to establish credibility, showcase services, and capture customer inquiries effortlessly.",
+      "startingPrice": "₹6,999",
+      "deliveryTime": "4 - 7 Days",
+      "category": "Web Development",
+      "iconName": "Globe",
+      "badge": "Popular",
+      "features": [
+        "5 to 8 Custom Responsive Pages",
+        "Mobile & Tablet Optimized UI",
+        "Contact Forms & Direct WhatsApp CTA",
+        "Google Maps & Location Integration",
+        "Basic On-Page SEO & Fast Loading",
+        "Social Media & Domain Connection"
+      ]
+    },
+    {
+      "id": "landing-page",
+      "name": "Landing Page",
+      "tagline": "Ultra-fast, high-converting one-page campaigns",
+      "description": "Engineered specifically for Google Ads, Facebook Ads, product launches, or event registrations with psychology-backed conversion architecture.",
+      "startingPrice": "₹3,499",
+      "deliveryTime": "2 - 4 Days",
+      "category": "Conversion",
+      "iconName": "Target",
+      "badge": "High ROI",
+      "features": [
+        "Single Page Persuasive Flow",
+        "Catchy Hero Section with Strong CTA",
+        "Lead Capture & WhatsApp Integration",
+        "Speed Optimized (Sub-2s load)",
+        "A/B Testing Ready Structure",
+        "Analytics & Pixel Ready"
+      ]
+    },
+    {
+      "id": "sales-funnel",
+      "name": "Sales Funnel",
+      "tagline": "Multi-step lead & revenue generation funnels",
+      "description": "Step-by-step conversion systems: opt-in pages, value stack, upsell/downsell pathways, and automated booking/order sequences.",
+      "startingPrice": "₹8,999",
+      "deliveryTime": "5 - 8 Days",
+      "category": "Marketing",
+      "iconName": "TrendingUp",
+      "badge": "Growth",
+      "features": [
+        "Opt-in / Squeeze Page Design",
+        "Checkout / Order Form Architecture",
+        "Thank You & Confirmation Logic",
+        "Direct WhatsApp Order Notification",
+        "Copywriting Guidance & Wireframing",
+        "Email / CRM Webhook Integration"
+      ]
+    },
+    {
+      "id": "online-course-website",
+      "name": "Online Course Website",
+      "tagline": "LMS & student training portals for coaches & creators",
+      "description": "Deliver recorded video modules, student dashboard, lesson navigation, and secure curriculum delivery for your coaching or training business.",
+      "startingPrice": "₹14,999",
+      "deliveryTime": "7 - 12 Days",
+      "category": "Education",
+      "iconName": "GraduationCap",
+      "badge": "Complete Solution",
+      "features": [
+        "Course Curriculum & Chapter Viewer",
+        "Student Login & Access Tracking",
+        "Video Hosting / Protection Guidance",
+        "Direct UPI Enrollment System",
+        "PDF Resources & Download Links",
+        "Certificate of Completion Design"
+      ]
+    },
+    {
+      "id": "ecommerce-website",
+      "name": "E-commerce Website",
+      "tagline": "Product catalog with order & catalog management",
+      "description": "Sell physical or digital products with dynamic catalogs, cart management, WhatsApp checkout, and manual UPI confirmation workflows.",
+      "startingPrice": "₹12,499",
+      "deliveryTime": "7 - 14 Days",
+      "category": "E-commerce",
+      "iconName": "ShoppingBag",
+      "badge": "Storefront",
+      "features": [
+        "Product Catalog & Category Filtering",
+        "Cart & Direct UPI Checkout Flow",
+        "WhatsApp Quick-Order Button",
+        "Admin Order Notification Alert",
+        "Mobile-First Responsive Shopping",
+        "Inventory & Price Management"
+      ]
+    },
+    {
+      "id": "portfolio-website",
+      "name": "Portfolio Website",
+      "tagline": "Standout personal brand & agency showcase",
+      "description": "For freelancers, creators, architects, photographers, and consultants looking to command premium rates and attract high-ticket clients.",
+      "startingPrice": "₹4,499",
+      "deliveryTime": "3 - 5 Days",
+      "category": "Personal Brand",
+      "iconName": "Briefcase",
+      "badge": "Showcase",
+      "features": [
+        "Visual Project Showcase Gallery",
+        "Interactive Case Studies Modal",
+        "About Story & Credibility Stack",
+        "Instant WhatsApp Chat Trigger",
+        "Downloadable Resume / Brochure Link",
+        "Smooth Interactions & Animations"
+      ]
+    },
+    {
+      "id": "ui-ux-design",
+      "name": "UI/UX Design",
+      "tagline": "Figma mockups, interactive prototypes & design systems",
+      "description": "Clean, modern, user-centric interfaces created in Figma ready for development. From wireframes to clickable high-fidelity prototypes.",
+      "startingPrice": "₹5,999",
+      "deliveryTime": "4 - 8 Days",
+      "category": "Design",
+      "iconName": "Layout",
+      "badge": "Figma Ready",
+      "features": [
+        "Clean Design System & Component Library",
+        "Mobile + Desktop Screen Layouts",
+        "Interactive Clickable Figma Prototype",
+        "Developer Handoff Assets & Specs",
+        "Modern Typography & Color Harmonies",
+        "Iterative Feedback Cycles"
+      ]
+    },
+    {
+      "id": "logo-branding",
+      "name": "Logo & Branding",
+      "tagline": "Distinctive brand identity, logos & brand guidelines",
+      "description": "Timeless vector logos and cohesive brand identities that resonate with your target market and elevate your brand perception.",
+      "startingPrice": "₹2,499",
+      "deliveryTime": "2 - 4 Days",
+      "category": "Branding",
+      "iconName": "Sparkles",
+      "badge": "Essential",
+      "features": [
+        "3 Distinct Logo Concepts",
+        "Vector AI, EPS, SVG, PNG, PDF Files",
+        "Brand Color Palette & Typography Rules",
+        "Social Media Profile Avatar Pack",
+        "Favicon & App Icon Format",
+        "Full Commercial Copyright Transfer"
+      ]
+    },
+    {
+      "id": "posters-thumbnails",
+      "name": "Poster / Banner / Thumbnail Design",
+      "tagline": "High-CTR YouTube thumbnails & ad banners",
+      "description": "Eye-catching social graphics, YouTube thumbnails, promotional banners, and festival creatives designed to stop the scroll.",
+      "startingPrice": "₹799",
+      "deliveryTime": "24 - 48 Hours",
+      "category": "Design",
+      "iconName": "Image",
+      "badge": "Fast Delivery",
+      "features": [
+        "High-CTR YouTube Thumbnails",
+        "Social Media Ad Creatives (Meta/Insta)",
+        "Web Hero & Promotional Banners",
+        "Print-ready Flyer / Poster Formats",
+        "High-Resolution 4K Export Formats",
+        "Fast Turnaround & Revisions"
+      ]
+    },
+    {
+      "id": "social-media-management",
+      "name": "Social Media Management",
+      "tagline": "Content calendar, post designs & profile optimization",
+      "description": "Grow your digital footprint with regular branded graphics, reels templates, compelling captions, and bio optimization.",
+      "startingPrice": "₹6,499",
+      "deliveryTime": "Monthly Service",
+      "category": "Marketing",
+      "iconName": "Share2",
+      "badge": "Retainer",
+      "features": [
+        "12 - 20 Branded Posts / Month",
+        "Captions & Relevant Hashtag Research",
+        "Instagram Bio & Highlight Revamp",
+        "Monthly Content Calendar Plan",
+        "Festival & Promotional Creative Alerts",
+        "Consistent Brand Aesthetics"
+      ]
+    },
+    {
+      "id": "website-maintenance",
+      "name": "Website Maintenance & Speed",
+      "tagline": "Security, bug fixes, backups & speed boosting",
+      "description": "Ensure your existing website stays lightning-fast, bug-free, securely backed up, and updated with your latest content.",
+      "startingPrice": "₹1,999",
+      "deliveryTime": "On Demand / Monthly",
+      "category": "Support",
+      "iconName": "ShieldCheck",
+      "badge": "Care",
+      "features": [
+        "Page Speed & Core Web Vitals Optimization",
+        "Security Audits & Malware Removal",
+        "Content Updates & Banner Swaps",
+        "Cloud Backups & SSL Setup",
+        "Broken Link & Error Troubleshooting",
+        "Direct WhatsApp Emergency Support"
+      ]
+    },
+    {
+      "id": "custom-digital-solutions",
+      "name": "Custom Digital Solutions",
+      "tagline": "Tailored web portals, automation & business tools",
+      "description": "Custom web tools, appointment booking platforms, automated lead routing, and tailored web applications matching your exact workflow.",
+      "startingPrice": "₹18,000",
+      "deliveryTime": "10 - 20 Days",
+      "category": "Custom Engineering",
+      "iconName": "Cpu",
+      "badge": "Bespoke",
+      "features": [
+        "Custom Database & API Architecture",
+        "Admin Control Panel & User Portals",
+        "Automated WhatsApp & Email Triggers",
+        "Direct UPI Manual Payment Workflow",
+        "Dedicated Codebase & Hosting Guidance",
+        "Extended Post-Launch Warranty Support"
+      ]
+    }
+  ],
+  "packages": [
+    {
+      "id": "starter",
+      "name": "STARTER",
+      "subtitle": "For small businesses, freelancers & beginners launching online",
+      "price": "₹4,999",
+      "delivery": "3 - 5 Days",
+      "popular": false,
+      "bestFor": "New ventures, local businesses, single product or portfolio launch",
+      "features": [
+        "Up to 3 Custom Responsive Pages",
+        "Mobile & Tablet Responsive Layout",
+        "Direct WhatsApp Chat Integration",
+        "Contact / Inquiry Form with Email Alerts",
+        "Basic On-Page SEO Setup",
+        "Social Media Icons & Links",
+        "Fast 3-5 Days Delivery",
+        "2 Rounds of Revisions",
+        "Direct UPI / Bank Transfer Payment"
+      ]
+    },
+    {
+      "id": "growth",
+      "name": "GROWTH",
+      "subtitle": "For businesses wanting a strong online presence & high conversions",
+      "price": "₹11,999",
+      "delivery": "6 - 9 Days",
+      "popular": true,
+      "bestFor": "Established businesses, consultants, agencies & service providers",
+      "features": [
+        "Up to 7 Custom Designed Pages",
+        "High-Converting Landing Architecture",
+        "Lead Magnet / Funnel Form Integration",
+        "WhatsApp Floating Widget & Auto-text",
+        "Advanced On-Page SEO & Meta Tags",
+        "Speed Optimization (90+ Google Score)",
+        "Free Logo & Favicon Integration",
+        "Google Maps & Local Business Schema",
+        "4 Rounds of Revisions + Priority Support",
+        "Direct UPI / Bank Transfer Flow"
+      ]
+    },
+    {
+      "id": "pro",
+      "name": "PRO",
+      "subtitle": "For businesses requiring advanced digital solutions & custom features",
+      "price": "₹24,999",
+      "delivery": "10 - 15 Days",
+      "popular": false,
+      "bestFor": "Course creators, e-commerce stores, custom portals & growing brands",
+      "features": [
+        "Up to 15 Pages or Full Custom Portal",
+        "Course LMS / Catalog / Booking Logic",
+        "Client Order Status & Tracking Workflow",
+        "Direct UPI Payment Verification Integration",
+        "Custom Admin Control Dashboard",
+        "Interactive Animations & Dynamic UI",
+        "High-Speed CDN Deployment Guidance",
+        "1 Month Free Maintenance & Updates",
+        "Unlimited Revisions during build",
+        "Dedicated WhatsApp Project Manager"
+      ]
+    },
+    {
+      "id": "custom",
+      "name": "CUSTOM",
+      "subtitle": "Bespoke requirements tailored around your business workflow",
+      "price": "Custom Quote",
+      "delivery": "Timeline on Scope",
+      "popular": false,
+      "bestFor": "Complex web applications, SaaS tools, enterprise portals",
+      "features": [
+        "100% Bespoke Code Architecture",
+        "Custom Database & API Integrations",
+        "Multi-Role Admin & User Portals",
+        "Custom Direct Payment & Billing Flows",
+        "WhatsApp Automation & Webhooks",
+        "Full Source Code Handoff & Documentation",
+        "White-Glove Dedicated Support",
+        "Milestone-Based Direct Bank Payments"
+      ]
+    }
+  ],
+  "portfolio": [
+    {
+      "id": "apex-saas",
+      "title": "Apex SaaS Growth Platform",
+      "category": "Websites",
+      "description": "High-converting modern web portal with interactive pricing, feature breakdowns, and automated lead capture.",
+      "techStack": [
+        "React",
+        "Tailwind CSS",
+        "Figma",
+        "Node.js"
+      ],
+      "isDemo": true,
+      "badge": "Demo Project",
+      "accentColor": "from-blue-600 to-cyan-500",
+      "highlights": [
+        "98 Google PageSpeed",
+        "Mobile-First UI",
+        "Dark Navy Theme",
+        "Interactive Calculator"
+      ]
+    },
+    {
+      "id": "profit-funnel",
+      "title": "ProFit Performance Sales Funnel",
+      "category": "Funnels",
+      "description": "High-converting lead generation funnel with multi-step inquiry form and instant WhatsApp lead dispatch.",
+      "techStack": [
+        "Landing Page",
+        "Copywriting",
+        "Conversion UI",
+        "WhatsApp API"
+      ],
+      "isDemo": true,
+      "badge": "Demo Funnel",
+      "accentColor": "from-amber-500 to-red-500",
+      "highlights": [
+        "Multi-Step Qualification",
+        "Direct WhatsApp Routing",
+        "Video Testimonial Stack"
+      ]
+    },
+    {
+      "id": "edumaster-lms",
+      "title": "EduMaster Digital Academy",
+      "category": "Landing Pages",
+      "description": "Online learning landing page and course catalog for digital mentors with chapter preview and direct UPI enrollment.",
+      "techStack": [
+        "React",
+        "LMS UI",
+        "Curriculum Viewer",
+        "UPI Payment Flow"
+      ],
+      "isDemo": true,
+      "badge": "Demo Concept",
+      "accentColor": "from-purple-600 to-indigo-500",
+      "highlights": [
+        "Curriculum Accordion",
+        "Student Testimonials",
+        "Direct UPI Scanner",
+        "Instant Order ID"
+      ]
+    },
+    {
+      "id": "neostore-catalog",
+      "title": "NeoStore Digital Gadgets",
+      "category": "Websites",
+      "description": "Sleek dark-mode gadget storefront featuring instant cart, product filtering, and manual UPI order placement.",
+      "techStack": [
+        "E-Commerce UI",
+        "Cart State",
+        "Tailwind",
+        "Responsive"
+      ],
+      "isDemo": true,
+      "badge": "Demo Store",
+      "accentColor": "from-emerald-500 to-teal-400",
+      "highlights": [
+        "Instant WhatsApp Checkout",
+        "Filter by Specs",
+        "Manual UTR Verification Flow"
+      ]
+    },
+    {
+      "id": "lumina-branding",
+      "title": "Lumina Creative Studio Identity",
+      "category": "Branding",
+      "description": "Complete brand identity kit featuring minimalist typography, vector monogram, stationery, and social media template pack.",
+      "techStack": [
+        "Adobe Illustrator",
+        "Figma",
+        "Vector Assets",
+        "Color Guide"
+      ],
+      "isDemo": true,
+      "badge": "Demo Concept",
+      "accentColor": "from-yellow-400 to-orange-500",
+      "highlights": [
+        "3 Vector Monograms",
+        "Social Media Grid Kit",
+        "Typography System",
+        "Dark & Light Variants"
+      ]
+    },
+    {
+      "id": "creator-thumbnail-pack",
+      "title": "Viral YouTube Thumbnail & Social Kit",
+      "category": "Design",
+      "description": "High-CTR YouTube thumbnail suite and promotional banner designs crafted to maximize click-through rates and view duration.",
+      "techStack": [
+        "Photoshop",
+        "Typography",
+        "Visual Hierarchy",
+        "CTR Optimization"
+      ],
+      "isDemo": true,
+      "badge": "Design Portfolio",
+      "accentColor": "from-cyan-400 to-blue-600",
+      "highlights": [
+        "Bold Visual Contrast",
+        "Facial Expression Framing",
+        "Clear Hierarchy",
+        "4K High Res"
+      ]
+    }
+  ],
+  "faqs": [
+    {
+      "id": "faq-1",
+      "category": "Orders",
+      "question": "How do I place an order?",
+      "answer": "You can choose your preferred service or package directly on this website, fill out the project order form with your requirements, and submit it. You will instantly receive a unique Order ID. You can also click \"WhatsApp Us\" to discuss with Suraj Maurya directly before or after placing your order."
+    },
+    {
+      "id": "faq-2",
+      "category": "Payments",
+      "question": "How does payment work? Is there any gateway fee?",
+      "answer": "We operate on a 100% Direct Payment model without third-party payment gateways. You pay directly to Suraj Maurya’s official UPI ID or bank account. After transferring the amount, simply submit your Transaction Reference (UTR number) on your order page. We manually verify the transaction and update your order status."
+    },
+    {
+      "id": "faq-3",
+      "category": "Payments",
+      "question": "Do you take advance payment?",
+      "answer": "Yes, to commence design and development, an initial project advance (usually 50% or as agreed depending on scope) is required. The remaining balance is payable upon project completion and client review before final files or domain handover."
+    },
+    {
+      "id": "faq-4",
+      "category": "Delivery",
+      "question": "How long does a website take to build?",
+      "answer": "A standard Landing Page takes 2 to 4 working days. A full Business Website takes 4 to 7 working days, while complex funnels or custom solutions take 7 to 15 working days. We provide an estimated completion date upon order confirmation."
+    },
+    {
+      "id": "faq-5",
+      "category": "Delivery",
+      "question": "Can I request revisions?",
+      "answer": "Absolutely! Every package includes revisions (2 rounds on Starter, 4 rounds on Growth, and extensive revisions on Pro) to guarantee that you are 100% satisfied with the design, layout, colors, and content before final delivery."
+    },
+    {
+      "id": "faq-6",
+      "category": "Orders",
+      "question": "Do you provide domain and hosting?",
+      "answer": "We provide complete assistance and setup for your domain and hosting on reliable platforms (Hostinger, Cloudflare, Vercel, VPS). If you already own a domain and hosting, we will configure and deploy your website directly to your server."
+    },
+    {
+      "id": "faq-7",
+      "category": "Orders",
+      "question": "Can you build a custom website with unique features?",
+      "answer": "Yes! We specialize in tailored digital solutions, custom booking forms, automated WhatsApp notifications, course portals, and custom client workflows. Select the \"Custom\" package or request a custom quote, and we will formulate a personalized proposal."
+    },
+    {
+      "id": "faq-8",
+      "category": "Support",
+      "question": "How do I track my order status?",
+      "answer": "Click \"Track Order\" in the top navigation or footer, enter your unique Order ID along with your registered WhatsApp number or email, and view real-time progress across all 10 stages from requirement review to final delivery."
+    },
+    {
+      "id": "faq-9",
+      "category": "Support",
+      "question": "How can I contact Suraj Maurya directly?",
+      "answer": "You can tap the floating WhatsApp button or call/chat directly at our official business WhatsApp number. You can also submit the Contact form or request a custom quote directly from the website."
+    }
+  ],
+  "settings": {
+    "ownerName": "Suraj Maurya",
+    "businessName": "Online Website & Digital Services",
+    "tagline": "Your Vision → Our Digital Solution",
+    "whatsappNumber": "+91 9876543210",
+    "email": "surajmaurya.services@gmail.com",
+    "upiId": "surajmaurya@upi",
+    "accountHolder": "Suraj Maurya",
+    "bankName": "State Bank of India (Sample/Configure in Admin)",
+    "accountNumber": "XXXXXX123456 (Configure in Admin)",
+    "ifscCode": "SBIN000XXXX",
+    "adminPassword": "admin",
+    "currency": "INR (₹)"
+  }
+}
