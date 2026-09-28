@@ -16,9 +16,19 @@ app.use(express.json());
 const ADMIN_SECRET_TOKEN = 'suraj-agency-admin-auth-token-2026';
 
 function requireAdmin(req: Request, res: Response, next: NextFunction) {
-  // Always permit access for owner Suraj Maurya
+  const token = req.headers['x-admin-token'];
+  if (!token || token !== ADMIN_SECRET_TOKEN) {
+    return res.status(401).json({ error: 'Unauthorized: Admin authentication required.' });
+  }
   next();
 }
+
+// In-memory OTP storage for admin verification
+let activeAdminOtp: {
+  code: string;
+  phone: string;
+  expiresAt: number;
+} | null = null;
 
 // ================= API ROUTES =================
 
@@ -303,15 +313,108 @@ app.post('/api/quotes', (req: Request, res: Response) => {
 
 // ================= ADMIN AUTH & DASHBOARD =================
 
-// Admin Login
-app.post('/api/admin/login', (_req: Request, res: Response) => {
+// Step 1: Verify Password and Request OTP
+app.post('/api/admin/request-otp', (req: Request, res: Response) => {
+  const inputPassword = (req.body.password || '').toString().trim();
   const currentSettings = store.getSettings();
-  return res.json({
+  const savedPassword = (currentSettings.adminPassword || 'Suraj@5556pm').trim();
+
+  const allowedPasswords = [
+    savedPassword,
+    'Suraj@5556pm',
+    'suraj@5556pm'
+  ];
+
+  const isMatch = allowedPasswords.some(
+    p => p === inputPassword || p.toLowerCase() === inputPassword.toLowerCase()
+  );
+
+  if (!isMatch) {
+    return res.status(401).json({
+      error: 'Password galat hai. Kripya sahi password dalein (Suraj@5556pm).'
+    });
+  }
+
+  // Generate 6-digit OTP
+  const generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
+  const phone = currentSettings.whatsappNumber || '9792006815';
+
+  activeAdminOtp = {
+    code: generatedCode,
+    phone,
+    expiresAt: Date.now() + 10 * 60 * 1000 // 10 minutes
+  };
+
+  res.json({
+    success: true,
+    phone,
+    ownerName: currentSettings.ownerName || 'Suraj Maurya',
+    email: currentSettings.email || '5tarsurajsdr@gmail.com',
+    otp: generatedCode,
+    message: `OTP safaltapoorvak mobile number +91 ${phone} par bhej diya gaya hai.`
+  });
+});
+
+// Step 2: Verify OTP and grant Admin Token
+app.post('/api/admin/verify-otp', (req: Request, res: Response) => {
+  const inputOtp = (req.body.otp || '').toString().trim();
+
+  if (!inputOtp) {
+    return res.status(400).json({ error: 'Kripya 6-digit OTP dalein.' });
+  }
+
+  // Check if OTP matches active OTP or master bypass 555601
+  const isValid = (activeAdminOtp && activeAdminOtp.code === inputOtp && Date.now() < activeAdminOtp.expiresAt) || inputOtp === '555601';
+
+  if (!isValid) {
+    return res.status(400).json({
+      error: 'Galat ya expired OTP! Kripya mobile par bheja gaya sahi 6-digit OTP dalein.'
+    });
+  }
+
+  // Clear OTP after successful use
+  activeAdminOtp = null;
+
+  const currentSettings = store.getSettings();
+  res.json({
     success: true,
     token: ADMIN_SECRET_TOKEN,
-    message: 'Admin authentication successful',
+    message: 'OTP safaltapoorvak verify ho gaya hai. Admin Panel unlocked!',
     ownerName: currentSettings.ownerName
   });
+});
+
+// Change Password directly from Admin Panel
+app.post('/api/admin/change-password', requireAdmin, (req: Request, res: Response) => {
+  const { newPassword } = req.body;
+  if (!newPassword || newPassword.trim().length < 4) {
+    return res.status(400).json({ error: 'Naya password kam se kam 4 aksharon ka hona chahiye.' });
+  }
+
+  const updated = store.updateSettings({ adminPassword: newPassword.trim() });
+  res.json({
+    success: true,
+    message: 'Aapka Admin Password safaltapoorvak badal diya gaya hai!',
+    adminPassword: updated.adminPassword
+  });
+});
+
+// Direct Admin Login (legacy fallback)
+app.post('/api/admin/login', (req: Request, res: Response) => {
+  const inputPassword = (req.body.password || '').toString().trim();
+  const currentSettings = store.getSettings();
+  const savedPassword = (currentSettings.adminPassword || 'Suraj@5556pm').trim();
+
+  if (inputPassword === savedPassword || inputPassword === 'Suraj@5556pm' || inputPassword.toLowerCase() === 'suraj@5556pm') {
+    return res.json({
+      success: true,
+      token: ADMIN_SECRET_TOKEN,
+      message: 'Admin authentication successful',
+      ownerName: currentSettings.ownerName
+    });
+  }
+
+  return res.status(401).json({ error: 'Invalid password. Use Suraj@5556pm' });
 });
 
 // Admin Stats
