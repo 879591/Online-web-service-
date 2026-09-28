@@ -24,14 +24,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 }) => {
   // Auth State
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('suraj_admin_token'));
-  const [authStep, setAuthStep] = useState<'PASSWORD' | 'OTP'>('PASSWORD');
-  const [passwordInput, setPasswordInput] = useState('Suraj@5556pm');
+  const [nameInput, setNameInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
   const [otpInput, setOtpInput] = useState('');
   const [generatedOtp, setGeneratedOtp] = useState<string | null>(null);
   const [otpPhone, setOtpPhone] = useState<string>('9792006815');
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loginSuccessMsg, setLoginSuccessMsg] = useState<string | null>(null);
   const [loginLoading, setLoginLoading] = useState(false);
+  const [otpLoading, setOtpLoading] = useState(false);
   const [otpCopied, setOtpCopied] = useState(false);
 
   // Active Tab
@@ -93,63 +94,91 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   if (!isOpen) return null;
 
-  const handleRequestOtp = async (e?: React.FormEvent, customPass?: string) => {
-    if (e) e.preventDefault();
-    setLoginLoading(true);
+  // 3-Line Auth Handlers
+  const handleSendOtp = async () => {
+    if (!nameInput.trim()) {
+      setLoginError('Kripya 1st line me apna Name dalein (Suraj Maurya).');
+      return;
+    }
+    if (!passwordInput.trim()) {
+      setLoginError('Kripya 2nd line me apna Password dalein.');
+      return;
+    }
+
+    setOtpLoading(true);
     setLoginError(null);
     setLoginSuccessMsg(null);
 
-    const passToUse = customPass !== undefined ? customPass : passwordInput;
-
     try {
-      const trimmedPassword = passToUse.trim();
-      const res = await fetch('/api/admin/request-otp', {
+      const res = await fetch('/api/admin/send-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: trimmedPassword })
+        body: JSON.stringify({
+          name: nameInput.trim(),
+          password: passwordInput.trim()
+        })
       });
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Password galat hai! Sahi password dalein.');
+        throw new Error(data.error || 'Name ya Password galat hai.');
       }
 
       setGeneratedOtp(data.otp);
       setOtpPhone(data.phone || '9792006815');
-      setLoginSuccessMsg(data.message || `OTP mobile +91 ${data.phone} par bhej diya gaya hai!`);
-      setOtpInput(data.otp); // Pre-fill for instant 1-click verification
-      setAuthStep('OTP');
+      setOtpInput(data.otp); // pre-populate in 3rd line for effortless verification
+      setLoginSuccessMsg(`OTP safaltapoorvak mobile number +91 ${data.phone || '9792006815'} par bhej diya gaya hai.`);
     } catch (err: any) {
-      setLoginError(err.message || 'OTP request fail ho gayi.');
+      setLoginError(err.message || 'OTP send karne me error aaya.');
     } finally {
-      setLoginLoading(false);
+      setOtpLoading(false);
     }
   };
 
-  const handleVerifyOtp = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
+  const handleLoginVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!nameInput.trim()) {
+      setLoginError('Kripya 1st line me apna Name dalein (Suraj Maurya).');
+      return;
+    }
+    if (!passwordInput.trim()) {
+      setLoginError('Kripya 2nd line me apna Password dalein.');
+      return;
+    }
+    if (!otpInput.trim()) {
+      setLoginError('Kripya 3rd line me "Get OTP" dabakar 6-digit OTP dalein.');
+      return;
+    }
+
     setLoginLoading(true);
     setLoginError(null);
 
     try {
-      const res = await fetch('/api/admin/verify-otp', {
+      const res = await fetch('/api/admin/login-verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ otp: otpInput.trim() })
+        body: JSON.stringify({
+          name: nameInput.trim(),
+          password: passwordInput.trim(),
+          otp: otpInput.trim()
+        })
       });
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Galat OTP hai.');
+        throw new Error(data.error || 'Verification fail ho gaya.');
       }
 
       localStorage.setItem('suraj_admin_token', data.token);
       setToken(data.token);
-      setAuthStep('PASSWORD');
-      setGeneratedOtp(null);
+      setNameInput('');
+      setPasswordInput('');
       setOtpInput('');
+      setGeneratedOtp(null);
+      setLoginError(null);
+      setLoginSuccessMsg(null);
     } catch (err: any) {
-      setLoginError(err.message || 'OTP verification fail.');
+      setLoginError(err.message || 'Verification fail ho gaya. Kripya details check karein.');
     } finally {
       setLoginLoading(false);
     }
@@ -165,9 +194,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const handleLogout = () => {
     localStorage.removeItem('suraj_admin_token');
     setToken(null);
-    setAuthStep('PASSWORD');
-    setGeneratedOtp(null);
+    setNameInput('');
+    setPasswordInput('');
     setOtpInput('');
+    setGeneratedOtp(null);
+    setLoginError(null);
+    setLoginSuccessMsg(null);
   };
 
   const loadAllAdminData = async () => {
@@ -411,187 +443,160 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
         {/* Content Body */}
         {!token ? (
-          <div className="max-w-md mx-auto my-12 p-6 sm:p-8 rounded-2xl bg-[#0f172a] border border-cyan-500/30 shadow-2xl space-y-5">
-            {authStep === 'PASSWORD' ? (
-              /* STEP 1: PASSWORD */
-              <div className="space-y-4">
-                <div className="text-center space-y-2">
-                  <div className="w-14 h-14 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 mx-auto">
-                    <Lock className="w-7 h-7" />
-                  </div>
-                  <span className="inline-block text-[10px] font-mono tracking-wider uppercase px-2.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 font-bold">
-                    Step 1 of 2: Password
-                  </span>
-                  <h3 className="text-lg font-bold text-white">Admin Security Access</h3>
-                  <div className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-[11px] text-slate-300 space-y-1">
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Authorized Owner:</span>
-                      <span className="font-bold text-white">{settings.ownerName || 'Suraj Maurya'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Registered Mobile:</span>
-                      <span className="font-bold text-cyan-400">+91 {settings.whatsappNumber || '9792006815'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Registered Email:</span>
-                      <span className="font-bold text-yellow-400">{settings.email || '5tarsurajsdr@gmail.com'}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {loginError && (
-                  <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 shrink-0" />
-                    <span>{loginError}</span>
-                  </div>
-                )}
-
-                <form onSubmit={handleRequestOtp} className="space-y-3">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-300 mb-1">
-                      Admin Password
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Password: Suraj@5556pm"
-                      value={passwordInput}
-                      onChange={(e) => setPasswordInput(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white placeholder-slate-500 font-mono focus:outline-none focus:border-cyan-400"
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between bg-slate-900/60 p-2 rounded-lg border border-slate-800/80 text-[11px]">
-                    <span className="text-slate-400">Aapka Password: <code className="text-yellow-400 font-bold">Suraj@5556pm</code></span>
-                    <button
-                      type="button"
-                      onClick={() => setPasswordInput('Suraj@5556pm')}
-                      className="px-2 py-0.5 rounded bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 text-[10px] font-bold cursor-pointer"
-                    >
-                      Auto-fill
-                    </button>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={loginLoading}
-                    className="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-xs shadow-lg shadow-cyan-500/25 flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50"
-                  >
-                    {loginLoading ? (
-                      <span className="animate-pulse">Checking Password...</span>
-                    ) : (
-                      <>
-                        <KeyRound className="w-4 h-4" />
-                        <span>Verify Password & Send Mobile OTP ➔</span>
-                      </>
-                    )}
-                  </button>
-                </form>
+          <div className="max-w-md mx-auto my-10 p-6 sm:p-8 rounded-2xl bg-[#0f172a] border border-cyan-500/30 shadow-2xl space-y-5">
+            <div className="text-center space-y-2">
+              <div className="w-13 h-13 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 mx-auto">
+                <Lock className="w-6 h-6" />
               </div>
-            ) : (
-              /* STEP 2: MOBILE OTP */
-              <div className="space-y-4">
-                <div className="text-center space-y-2">
-                  <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mx-auto">
-                    <Smartphone className="w-7 h-7" />
-                  </div>
-                  <span className="inline-block text-[10px] font-mono tracking-wider uppercase px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 font-bold">
-                    Step 2 of 2: Mobile OTP Verification
-                  </span>
-                  <h3 className="text-lg font-bold text-white">Mobile OTP Verification</h3>
-                  <p className="text-xs text-slate-300">
-                    Suraj Maurya ji, aapke mobile <strong className="text-cyan-400">+91 {otpPhone}</strong> par 6-digit OTP generate ho gaya hai.
-                  </p>
-                </div>
+              <h3 className="text-lg font-bold text-white">Admin Portal Login</h3>
+              <p className="text-xs text-slate-400">
+                Secure administrative access for Agency Command Center
+              </p>
+            </div>
 
-                {/* SMS & WhatsApp Notification Box */}
-                {generatedOtp && (
-                  <div className="p-3.5 rounded-xl bg-gradient-to-br from-emerald-950/60 to-slate-900 border border-emerald-500/40 space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1.5">
-                        <Smartphone className="w-3.5 h-3.5" />
-                        Official Mobile / WhatsApp OTP:
-                      </span>
-                      <span className="text-[10px] font-mono text-slate-400">Valid 10 mins</span>
-                    </div>
-                    <div className="flex items-center justify-between bg-black/40 p-2.5 rounded-lg border border-emerald-500/30">
-                      <span className="text-2xl font-mono font-extrabold tracking-widest text-emerald-300">
-                        {generatedOtp}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleCopyOtp(generatedOtp)}
-                        className="px-2.5 py-1 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold flex items-center gap-1 cursor-pointer"
-                      >
-                        {otpCopied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                        <span>{otpCopied ? 'Copied!' : 'Copy OTP'}</span>
-                      </button>
-                    </div>
-
-                    <a
-                      href={`https://wa.me/91${otpPhone}?text=${encodeURIComponent(`Online Website & Digital Services\nNamaste Suraj Maurya ji,\nAapka Admin Panel Login OTP hai: ${generatedOtp}\nIs code ko website me daal kar Dashboard unlock karein.`)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full py-2 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/40 text-emerald-300 border border-emerald-500/30 text-[11px] font-bold flex items-center justify-center gap-2 cursor-pointer transition"
-                    >
-                      <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>WhatsApp par OTP Alert dekhein (+91 {otpPhone})</span>
-                    </a>
-                  </div>
-                )}
-
-                {loginError && (
-                  <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 shrink-0" />
-                    <span>{loginError}</span>
-                  </div>
-                )}
-
-                <form onSubmit={handleVerifyOtp} className="space-y-3">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-300 mb-1">
-                      Enter 6-Digit OTP
-                    </label>
-                    <input
-                      type="text"
-                      maxLength={6}
-                      required
-                      autoFocus
-                      placeholder="e.g. 555601"
-                      value={otpInput}
-                      onChange={(e) => setOtpInput(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-center text-lg text-white font-mono tracking-widest focus:outline-none focus:border-emerald-400"
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={loginLoading}
-                    className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-extrabold text-xs shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50"
-                  >
-                    {loginLoading ? (
-                      <span className="animate-pulse">Verifying OTP...</span>
-                    ) : (
-                      <>
-                        <ShieldCheck className="w-4 h-4" />
-                        <span>Verify OTP & Unlock Dashboard 🚀</span>
-                      </>
-                    )}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuthStep('PASSWORD');
-                      setLoginError(null);
-                    }}
-                    className="w-full text-center text-xs text-slate-400 hover:text-white pt-1 cursor-pointer"
-                  >
-                    ← Back to Password Step
-                  </button>
-                </form>
+            {loginError && (
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{loginError}</span>
               </div>
             )}
+
+            {loginSuccessMsg && (
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>{loginSuccessMsg}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleLoginVerify} className="space-y-4">
+              {/* 1st Line: Name */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  1st Line: Admin Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Enter Your Name (Suraj Maurya)"
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+                />
+              </div>
+
+              {/* 2nd Line: Password + Forgot Password */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-slate-300">
+                    2nd Line: Admin Password
+                  </label>
+                  <a
+                    href={`https://wa.me/919792006815?text=${encodeURIComponent('Namaste Suraj Maurya, I need to reset/recover my Admin Login Password for Online Website & Digital Services.')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] text-cyan-400 hover:text-cyan-300 hover:underline flex items-center gap-1 font-medium"
+                  >
+                    <span>Forgot Password? (WhatsApp)</span>
+                  </a>
+                </div>
+                <input
+                  type="password"
+                  required
+                  placeholder="Enter Admin Password"
+                  value={passwordInput}
+                  onChange={(e) => setPasswordInput(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+                />
+              </div>
+
+              {/* 3rd Line: 6-Digit OTP */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  3rd Line: 6-Digit Mobile OTP
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    maxLength={6}
+                    required
+                    placeholder="Enter 6-Digit OTP"
+                    value={otpInput}
+                    onChange={(e) => setOtpInput(e.target.value)}
+                    className="flex-1 px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white font-mono placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSendOtp}
+                    disabled={otpLoading}
+                    className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-bold text-xs shrink-0 cursor-pointer disabled:opacity-50 transition flex items-center gap-1.5"
+                  >
+                    {otpLoading ? (
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Smartphone className="w-3.5 h-3.5" />
+                    )}
+                    <span>{otpSent ? 'Resend OTP' : 'Get OTP 📲'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* OTP Notification Alert Box when OTP is sent */}
+              {generatedOtp && (
+                <div className="p-3.5 rounded-xl bg-gradient-to-br from-emerald-950/60 to-slate-900 border border-emerald-500/40 space-y-2">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-emerald-400 font-bold flex items-center gap-1.5">
+                      <Smartphone className="w-3.5 h-3.5" />
+                      Mobile OTP Generated (+91 {otpPhone}):
+                    </span>
+                    <span className="text-[10px] font-mono text-slate-400">Valid 10 mins</span>
+                  </div>
+                  <div className="flex items-center justify-between bg-black/40 p-2 rounded-lg border border-emerald-500/30">
+                    <span className="text-xl font-mono font-extrabold tracking-widest text-emerald-300 px-1">
+                      {generatedOtp}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyOtp(generatedOtp)}
+                      className="px-2.5 py-1 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                    >
+                      {otpCopied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                      <span>{otpCopied ? 'Copied' : 'Auto-fill'}</span>
+                    </button>
+                  </div>
+                  <a
+                    href={`https://wa.me/91${otpPhone}?text=${encodeURIComponent(`Online Website & Digital Services\nNamaste Suraj Maurya ji,\nAapka Admin Login OTP hai: ${generatedOtp}\nIs code ko website ke 3rd line me daal kar Admin Panel unlock karein.`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold flex items-center justify-center gap-1.5 transition"
+                  >
+                    <MessageSquare className="w-3 h-3 text-emerald-400" />
+                    <span>WhatsApp par OTP Alert dekhein (+91 {otpPhone})</span>
+                  </a>
+                </div>
+              )}
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={loginLoading}
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-xs shadow-lg shadow-cyan-500/25 flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50"
+              >
+                {loginLoading ? (
+                  <span className="animate-pulse">Verifying Credentials...</span>
+                ) : (
+                  <>
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>Verify & Unlock Admin Panel 🚀</span>
+                  </>
+                )}
+              </button>
+            </form>
+
+            <div className="pt-2 border-t border-slate-800/80 text-center">
+              <span className="text-[10px] text-slate-500">
+                Authorized Owner Access Only • WhatsApp Support: +91 9792006815
+              </span>
+            </div>
           </div>
         ) : (
           /* Authenticated Dashboard View */

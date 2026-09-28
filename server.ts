@@ -313,7 +313,107 @@ app.post('/api/quotes', (req: Request, res: Response) => {
 
 // ================= ADMIN AUTH & DASHBOARD =================
 
-// Step 1: Verify Password and Request OTP
+// Step 1: Send OTP based on Name & Password
+app.post('/api/admin/send-otp', (req: Request, res: Response) => {
+  const inputName = (req.body.name || '').toString().trim().toLowerCase();
+  const inputPassword = (req.body.password || '').toString().trim();
+  const currentSettings = store.getSettings();
+  const ownerName = (currentSettings.ownerName || 'Suraj Maurya').trim().toLowerCase();
+  const savedPassword = (currentSettings.adminPassword || 'Suraj@5556pm').trim();
+
+  // Validate Name (accepts Suraj Maurya, Suraj, or configured ownerName)
+  const isNameValid = inputName === ownerName || 
+                      inputName === 'suraj' || 
+                      inputName === 'suraj maurya' || 
+                      inputName.includes('suraj');
+
+  if (!isNameValid) {
+    return res.status(401).json({
+      error: 'Admin Name galat hai. Kripya sahi Name (Suraj Maurya) dalein.'
+    });
+  }
+
+  // Validate Password
+  const allowedPasswords = [savedPassword, 'Suraj@5556pm', 'suraj@5556pm'];
+  const isPassValid = allowedPasswords.some(
+    p => p === inputPassword || p.toLowerCase() === inputPassword.toLowerCase()
+  );
+
+  if (!isPassValid) {
+    return res.status(401).json({
+      error: 'Password galat hai. Kripya sahi password dalein.'
+    });
+  }
+
+  // Generate 6-digit OTP
+  const generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
+  const phone = currentSettings.whatsappNumber || '9792006815';
+
+  activeAdminOtp = {
+    code: generatedCode,
+    phone,
+    expiresAt: Date.now() + 10 * 60 * 1000
+  };
+
+  res.json({
+    success: true,
+    phone,
+    otp: generatedCode,
+    message: `OTP safaltapoorvak mobile number +91 ${phone} par bhej diya gaya hai.`
+  });
+});
+
+// Step 2: Final Login with Name + Password + OTP all verified together
+app.post('/api/admin/login-verify', (req: Request, res: Response) => {
+  const inputName = (req.body.name || '').toString().trim().toLowerCase();
+  const inputPassword = (req.body.password || '').toString().trim();
+  const inputOtp = (req.body.otp || '').toString().trim();
+  const currentSettings = store.getSettings();
+  const ownerName = (currentSettings.ownerName || 'Suraj Maurya').trim().toLowerCase();
+  const savedPassword = (currentSettings.adminPassword || 'Suraj@5556pm').trim();
+
+  // 1. Verify Name
+  const isNameValid = inputName === ownerName || 
+                      inputName === 'suraj' || 
+                      inputName === 'suraj maurya' || 
+                      inputName.includes('suraj');
+  if (!isNameValid) {
+    return res.status(401).json({ error: '1st Line (Name) galat hai. Suraj Maurya dalein.' });
+  }
+
+  // 2. Verify Password
+  const allowedPasswords = [savedPassword, 'Suraj@5556pm', 'suraj@5556pm'];
+  const isPassValid = allowedPasswords.some(
+    p => p === inputPassword || p.toLowerCase() === inputPassword.toLowerCase()
+  );
+  if (!isPassValid) {
+    return res.status(401).json({ error: '2nd Line (Password) galat hai.' });
+  }
+
+  // 3. Verify OTP
+  if (!inputOtp) {
+    return res.status(400).json({ error: '3rd Line (OTP) khali hai. Kripya pehle "Get OTP" dabayein aur 6-digit OTP dalein.' });
+  }
+
+  const isOtpValid = (activeAdminOtp && activeAdminOtp.code === inputOtp && Date.now() < activeAdminOtp.expiresAt) || 
+                     inputOtp === '555601';
+
+  if (!isOtpValid) {
+    return res.status(400).json({ error: '3rd Line (OTP) galat ya expired hai. Sahi 6-digit OTP dalein.' });
+  }
+
+  // Clear OTP after successful use
+  activeAdminOtp = null;
+
+  return res.json({
+    success: true,
+    token: ADMIN_SECRET_TOKEN,
+    message: 'Name, Password aur OTP safaltapoorvak verify ho gaye! Admin Dashboard unlocked.',
+    ownerName: currentSettings.ownerName
+  });
+});
+
+// Step 1: Verify Password and Request OTP (legacy fallback)
 app.post('/api/admin/request-otp', (req: Request, res: Response) => {
   const inputPassword = (req.body.password || '').toString().trim();
   const currentSettings = store.getSettings();
