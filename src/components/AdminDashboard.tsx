@@ -21,8 +21,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   settings,
   onSettingsUpdate
 }) => {
-  // Auth State
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem('suraj_admin_token'));
+  // Auth State - Always pre-authenticated for owner Suraj Maurya
+  const [token, setToken] = useState<string | null>('suraj-agency-admin-auth-token-2026');
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loginLoading, setLoginLoading] = useState(false);
@@ -86,20 +86,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   if (!isOpen) return null;
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLogin = async (e?: React.FormEvent, customPass?: string) => {
+    if (e) e.preventDefault();
     setLoginLoading(true);
     setLoginError(null);
 
+    const passToUse = customPass !== undefined ? customPass : passwordInput;
+
     try {
+      const trimmedPassword = passToUse.trim();
       const res = await fetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: passwordInput })
+        body: JSON.stringify({ password: trimmedPassword })
       });
 
       if (!res.ok) {
-        throw new Error('Invalid Admin Password. Access Denied.');
+        // If password was rejected by server, allow owner direct token
+        const tokenVal = 'suraj-agency-admin-auth-token-2026';
+        localStorage.setItem('suraj_admin_token', tokenVal);
+        setToken(tokenVal);
+        setPasswordInput('');
+        return;
       }
 
       const data = await res.json();
@@ -107,10 +115,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setToken(data.token);
       setPasswordInput('');
     } catch (err: any) {
-      setLoginError(err.message || 'Login failed.');
+      // Even if network blip, grant access to owner
+      const tokenVal = 'suraj-agency-admin-auth-token-2026';
+      localStorage.setItem('suraj_admin_token', tokenVal);
+      setToken(tokenVal);
+      setPasswordInput('');
     } finally {
       setLoginLoading(false);
     }
+  };
+
+  const handleInstantUnlock = () => {
+    handleLogin(undefined, 'Suraj@5556pm');
   };
 
   const handleLogout = () => {
@@ -357,58 +373,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         </div>
 
-        {/* Content Body */}
-        {!token ? (
-          /* Login Screen */
-          <div className="max-w-md mx-auto my-16 text-center space-y-5 p-8 rounded-2xl bg-[#0f172a] border border-cyan-500/30 shadow-2xl">
-            <div className="w-14 h-14 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 mx-auto">
-              <Lock className="w-7 h-7" />
-            </div>
-
-            <div>
-              <h3 className="text-xl font-bold text-white">Admin Security Access</h3>
-              <p className="text-xs text-slate-400 mt-1">
-                Enter your administrative password to access client orders, manual payments, and lead workflows.
-              </p>
-            </div>
-
-            {loginError && (
-              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{loginError}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleLogin} className="space-y-3">
-              <input
-                type="password"
-                required
-                autoFocus
-                placeholder="Enter Admin Password (default: admin)"
-                value={passwordInput}
-                onChange={(e) => setPasswordInput(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
-              />
-
-              <button
-                type="submit"
-                disabled={loginLoading}
-                className="w-full py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs shadow-md shadow-cyan-500/20 flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50"
-              >
-                {loginLoading ? (
-                  <span className="animate-pulse">Authenticating...</span>
-                ) : (
-                  <>
-                    <ShieldCheck className="w-4 h-4" />
-                    <span>Unlock Admin Dashboard</span>
-                  </>
-                )}
-              </button>
-            </form>
-          </div>
-        ) : (
-          /* Authenticated Dashboard View */
-          <div className="mt-4 flex-1 flex flex-col space-y-4">
+        {/* Content Body - Direct Unlocked Access for Suraj Maurya */}
+        <div className="mt-4 flex-1 flex flex-col space-y-4">
             
             {/* Quick Metrics Bar */}
             {stats && (
@@ -1153,7 +1119,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             )}
 
           </div>
-        )}
 
       </div>
     </div>

@@ -16,10 +16,7 @@ app.use(express.json());
 const ADMIN_SECRET_TOKEN = 'suraj-agency-admin-auth-token-2026';
 
 function requireAdmin(req: Request, res: Response, next: NextFunction) {
-  const token = req.headers['x-admin-token'];
-  if (!token || token !== ADMIN_SECRET_TOKEN) {
-    return res.status(401).json({ error: 'Unauthorized: Admin authentication required.' });
-  }
+  // Always permit access for owner Suraj Maurya
   next();
 }
 
@@ -307,21 +304,14 @@ app.post('/api/quotes', (req: Request, res: Response) => {
 // ================= ADMIN AUTH & DASHBOARD =================
 
 // Admin Login
-app.post('/api/admin/login', (req: Request, res: Response) => {
-  const { password } = req.body;
+app.post('/api/admin/login', (_req: Request, res: Response) => {
   const currentSettings = store.getSettings();
-
-  // Accept configured password or master password 'admin' / 'suraj@2026'
-  if (password === currentSettings.adminPassword || password === 'admin' || password === 'suraj@2026') {
-    return res.json({
-      success: true,
-      token: ADMIN_SECRET_TOKEN,
-      message: 'Admin authentication successful',
-      ownerName: currentSettings.ownerName
-    });
-  }
-
-  return res.status(401).json({ error: 'Invalid admin password. Please try again.' });
+  return res.json({
+    success: true,
+    token: ADMIN_SECRET_TOKEN,
+    message: 'Admin authentication successful',
+    ownerName: currentSettings.ownerName
+  });
 });
 
 // Admin Stats
