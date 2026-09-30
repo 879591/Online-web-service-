@@ -3,6 +3,13 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { store } from './server/store.ts';
 import { Order, OrderStage, Lead, Quote } from './src/types/index.ts';
+import { 
+  sendOrderConfirmationEmail, 
+  sendOrderConfirmationSMS, 
+  sendAdminVerifyOtp, 
+  checkAdminVerifyOtp 
+} from './server/services/notificationService.ts';
+import { createInvoiceDoc } from './src/utils/invoiceGenerator.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -109,7 +116,22 @@ app.get('/api/faqs', (_req: Request, res: Response) => {
 });
 
 // Client Order Submission
-app.post('/api/orders', (req: Request, res: Response) => {
+app.post(['/api/orders', '/orders'], (req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'application/json');
+
+  // Idempotency check: prevent duplicate orders when tapped multiple times
+  const idempotencyKey = (req.body.idempotencyKey || req.headers['x-idempotency-key'] || '').toString().trim();
+  if (idempotencyKey) {
+    const existing = store.getRecentOrderByIdempotency(idempotencyKey);
+    if (existing) {
+      return res.status(200).json({
+        success: true,
+        data: existing,
+        ...existing
+      });
+    }
+  }
+
   const rawClientName = req.body.clientName || req.body.name || '';
   const rawBrandName = req.body.brandName || req.body.businessName || rawClientName;
   const rawWhatsapp = req.body.whatsapp || req.body.whatsappNumber || req.body.phone || '';
@@ -126,25 +148,26 @@ app.post('/api/orders', (req: Request, res: Response) => {
   const rawFileUrl = req.body.fileReferenceUrl || '';
 
   if (!rawClientName || rawClientName.trim().length < 2) {
-    return res.status(400).json({ error: 'Please enter your full name (minimum 2 characters).' });
+    return res.status(400).json({ success: false, error: 'Please enter your full name (minimum 2 characters).' });
   }
 
   const cleanPhone = rawWhatsapp.toString().replace(/\D/g, '');
   if (cleanPhone.length < 10) {
-    return res.status(400).json({ error: 'Please enter a valid 10-digit WhatsApp/Phone number.' });
+    return res.status(400).json({ success: false, error: 'Please enter a valid 10-digit WhatsApp/Phone number.' });
   }
 
   if (rawEmail && rawEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail.trim())) {
-    return res.status(400).json({ error: 'Please enter a valid email address.' });
+    return res.status(400).json({ success: false, error: 'Please enter a valid email address.' });
   }
 
   if (!rawDescription || rawDescription.trim().length < 5) {
-    return res.status(400).json({ error: 'Please provide project description (minimum 5 characters).' });
+    return res.status(400).json({ success: false, error: 'Please provide project description (minimum 5 characters).' });
   }
 
-  // Generate unique Order ID
+  // Generate unique Order ID and Invoice Number
   const randomSuffix = Math.floor(100000 + Math.random() * 900000);
   const orderId = `ORD-${randomSuffix}`;
+  const invoiceNumber = `INV-${orderId}`;
 
   const now = new Date().toISOString();
   const newOrder: Order = {
@@ -168,6 +191,11 @@ app.post('/api/orders', (req: Request, res: Response) => {
     status: 'Order Received',
     price: rawBudget.trim() || 'Pending Scope Confirmation',
     paymentStatus: 'Pending',
+    invoiceNumber,
+    invoiceStatus: 'GENERATED',
+    emailStatus: 'PENDING',
+    smsStatus: 'PENDING',
+    idempotencyKey: idempotencyKey || undefined,
     history: [
       {
         stage: 'Order Received',
@@ -193,11 +221,81 @@ app.post('/api/orders', (req: Request, res: Response) => {
     notes: `Associated with Order ${orderId}`
   });
 
-  res.status(201).setHeader('Content-Type', 'application/json').json({
+  // Asynchronous background notifications (failures NEVER cancel or break the saved order!)
+  const appHost = req.protocol + '://' + req.get('host');
+  (async () => {
+    // 1. Transactional Email via Resend
+    if (newOrder.email) {
+      try {
+        const emailRes = await sendOrderConfirmationEmail(createdOrder, appHost);
+        store.updateOrder(createdOrder.id, {
+          emailStatus: emailRes.status,
+          emailMessageId: emailRes.messageId,
+          emailError: emailRes.error
+        });
+      } catch (err: any) {
+        store.updateOrder(createdOrder.id, {
+          emailStatus: 'FAILED',
+          emailError: err?.message || 'Email delivery failed'
+        });
+      }
+    } else {
+      store.updateOrder(createdOrder.id, {
+        emailStatus: 'NOT_CONFIGURED',
+        emailError: 'Client did not provide an email address'
+      });
+    }
+
+    // 2. Transactional SMS via Twilio
+    try {
+      const smsRes = await sendOrderConfirmationSMS(createdOrder, appHost);
+      store.updateOrder(createdOrder.id, {
+        smsStatus: smsRes.status,
+        smsMessageId: smsRes.messageId,
+        smsError: smsRes.error
+      });
+    } catch (err: any) {
+      store.updateOrder(createdOrder.id, {
+        smsStatus: 'FAILED',
+        smsError: err?.message || 'SMS delivery failed'
+      });
+    }
+  })();
+
+  res.status(201).json({
     success: true,
     data: createdOrder,
     ...createdOrder
   });
+});
+
+// Download Real PDF Invoice
+app.get(['/api/orders/:id/invoice', '/api/orders/:id/invoice.pdf'], (req: Request, res: Response) => {
+  const orderId = req.params.id;
+  const order = store.getOrderById(orderId);
+  if (!order) {
+    return res.status(404).setHeader('Content-Type', 'application/json').json({
+      success: false,
+      error: 'Order not found for invoice generation.'
+    });
+  }
+
+  try {
+    const doc = createInvoiceDoc(order, store.getSettings());
+    const arrayBuf = doc.output('arraybuffer');
+    const buffer = Buffer.from(arrayBuf);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="Invoice_${order.id}.pdf"`);
+    res.setHeader('Content-Length', buffer.length.toString());
+    res.send(buffer);
+  } catch (err: any) {
+    console.error('Invoice PDF generation error:', err);
+    res.status(500).setHeader('Content-Type', 'application/json').json({
+      success: false,
+      error: 'Failed to generate PDF invoice.'
+    });
+  }
 });
 
 // Client Order Tracking
@@ -355,30 +453,44 @@ app.post('/api/quotes', (req: Request, res: Response) => {
 
 // ================= ADMIN AUTH & DASHBOARD =================
 
-// Step 1: Send OTP to Registered Number 9792006815
-app.post('/api/admin/send-otp', (req: Request, res: Response) => {
+// Step 1: Send Real SMS OTP to Registered Admin Phone via Twilio Verify
+app.post('/api/admin/send-otp', async (req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'application/json');
   const currentSettings = store.getSettings();
-  const phone = currentSettings.whatsappNumber || '9792006815';
+  const phone = process.env.ADMIN_PHONE_NUMBER || currentSettings.whatsappNumber || '9792006815';
 
-  // Generate 6-digit OTP
-  const generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
+  const hasTwilioVerify = Boolean(
+    process.env.TWILIO_ACCOUNT_SID && 
+    process.env.TWILIO_AUTH_TOKEN && 
+    process.env.TWILIO_VERIFY_SERVICE_SID
+  );
 
-  activeAdminOtp = {
-    code: generatedCode,
-    phone,
-    expiresAt: Date.now() + 15 * 60 * 1000 // 15 minutes validity
-  };
+  if (!hasTwilioVerify) {
+    return res.status(400).json({
+      success: false,
+      error: 'SMS OTP is not configured. Please set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_VERIFY_SERVICE_SID in server environment variables.'
+    });
+  }
 
+  const otpResult = await sendAdminVerifyOtp(phone);
+  if (!otpResult.success) {
+    return res.status(400).json({
+      success: false,
+      error: otpResult.error || 'Failed to send SMS OTP.'
+    });
+  }
+
+  // Never return the OTP in the response or log it!
   res.json({
     success: true,
     phone,
-    otp: generatedCode,
-    message: `OTP safaltapoorvak mobile number +91 ${phone} par bhej diya gaya hai.`
+    message: `Verification OTP has been sent via SMS to your registered mobile number.`
   });
 });
 
 // Step 2: Final Login with 1st Line (Name) + 2nd Line (Password) + 3rd Line (OTP) all verified together
-app.post('/api/admin/login-verify', (req: Request, res: Response) => {
+app.post('/api/admin/login-verify', async (req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'application/json');
   const inputName = (req.body.name || '').toString().trim().toLowerCase();
   const inputPassword = (req.body.password || '').toString().trim();
   const inputOtp = (req.body.otp || '').toString().trim();
@@ -397,7 +509,7 @@ app.post('/api/admin/login-verify', (req: Request, res: Response) => {
     inputName === 'admin';
 
   if (!isNameValid) {
-    return res.status(401).json({ error: '1st Line (Name) galat hai. Kripya apna sahi Name (Suraj Maurya) dalein.' });
+    return res.status(401).json({ success: false, error: '1st Line (Name) is incorrect. Please enter "Suraj Maurya".' });
   }
 
   // 2. Verify Password (accepts saved password or Suraj@5556pm)
@@ -407,29 +519,53 @@ app.post('/api/admin/login-verify', (req: Request, res: Response) => {
   );
 
   if (!isPassValid) {
-    return res.status(401).json({ error: '2nd Line (Password) galat hai. Kripya sahi password dalein.' });
+    return res.status(401).json({ success: false, error: '2nd Line (Password) is incorrect. Please enter your valid password.' });
   }
 
   // 3. Verify OTP
   if (!inputOtp) {
-    return res.status(400).json({ error: '3rd Line (OTP) khali hai. Kripya "Get OTP 📲" dabayein aur 6-digit OTP dalein.' });
+    return res.status(400).json({ success: false, error: '3rd Line (OTP) is empty. Please click "Get OTP" and enter the 6-digit code received via SMS.' });
   }
 
-  const isOtpValid = (activeAdminOtp && activeAdminOtp.code === inputOtp && Date.now() < activeAdminOtp.expiresAt) || 
-                     inputOtp === '555601' ||
-                     inputOtp === '721343';
+  const phone = process.env.ADMIN_PHONE_NUMBER || currentSettings.whatsappNumber || '9792006815';
+  const hasTwilioVerify = Boolean(
+    process.env.TWILIO_ACCOUNT_SID && 
+    process.env.TWILIO_AUTH_TOKEN && 
+    process.env.TWILIO_VERIFY_SERVICE_SID
+  );
 
-  if (!isOtpValid) {
-    return res.status(400).json({ error: '3rd Line (OTP) galat ya expired hai. Kripya naya "Get OTP" dabayein.' });
+  // If secure backup code is configured in env (for emergency recovery)
+  const backupCode = process.env.ADMIN_BACKUP_CODE;
+  const isBackupMatch = Boolean(backupCode && inputOtp === backupCode.trim());
+
+  if (isBackupMatch) {
+    return res.json({
+      success: true,
+      token: ADMIN_SECRET_TOKEN,
+      message: 'Admin Dashboard unlocked via secure admin backup key.',
+      ownerName: currentSettings.ownerName
+    });
   }
 
-  // Clear OTP after successful use
-  activeAdminOtp = null;
+  if (!hasTwilioVerify) {
+    return res.status(400).json({
+      success: false,
+      error: 'SMS OTP is not configured. Please configure TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_VERIFY_SERVICE_SID in server environment variables.'
+    });
+  }
+
+  const verifyResult = await checkAdminVerifyOtp(phone, inputOtp);
+  if (!verifyResult.success || !verifyResult.valid) {
+    return res.status(400).json({
+      success: false,
+      error: verifyResult.error || 'Invalid or expired OTP code. Please enter the latest SMS code.'
+    });
+  }
 
   return res.json({
     success: true,
     token: ADMIN_SECRET_TOKEN,
-    message: 'Name, Password aur OTP safaltapoorvak verify ho gaye! Admin Dashboard unlocked.',
+    message: 'Name, Password and SMS OTP verified successfully! Admin Dashboard unlocked.',
     ownerName: currentSettings.ownerName
   });
 });
@@ -752,6 +888,67 @@ app.put('/api/admin/orders/:id/reject-payment', requireAdmin, (req: Request, res
   });
 
   res.json(updated);
+});
+
+// Admin Resend Confirmation Email
+app.post('/api/admin/orders/:id/resend-email', requireAdmin, async (req: Request, res: Response) => {
+  const orderId = req.params.id;
+  const order = store.getOrderById(orderId);
+  if (!order) return res.status(404).json({ success: false, error: 'Order not found' });
+
+  const appHost = req.protocol + '://' + req.get('host');
+  const emailRes = await sendOrderConfirmationEmail(order, appHost);
+
+  const updated = store.updateOrder(orderId, {
+    emailStatus: emailRes.status,
+    emailMessageId: emailRes.messageId,
+    emailError: emailRes.error
+  });
+
+  res.json({
+    success: emailRes.status === 'SENT',
+    data: updated,
+    result: emailRes
+  });
+});
+
+// Admin Resend Confirmation SMS
+app.post('/api/admin/orders/:id/resend-sms', requireAdmin, async (req: Request, res: Response) => {
+  const orderId = req.params.id;
+  const order = store.getOrderById(orderId);
+  if (!order) return res.status(404).json({ success: false, error: 'Order not found' });
+
+  const appHost = req.protocol + '://' + req.get('host');
+  const smsRes = await sendOrderConfirmationSMS(order, appHost);
+
+  const updated = store.updateOrder(orderId, {
+    smsStatus: smsRes.status,
+    smsMessageId: smsRes.messageId,
+    smsError: smsRes.error
+  });
+
+  res.json({
+    success: smsRes.status === 'SENT',
+    data: updated,
+    result: smsRes
+  });
+});
+
+// Admin Regenerate Invoice
+app.post('/api/admin/orders/:id/regenerate-invoice', requireAdmin, (req: Request, res: Response) => {
+  const orderId = req.params.id;
+  const order = store.getOrderById(orderId);
+  if (!order) return res.status(404).json({ success: false, error: 'Order not found' });
+
+  const updated = store.updateOrder(orderId, {
+    invoiceNumber: `INV-${order.id}`,
+    invoiceStatus: 'GENERATED'
+  });
+
+  res.json({
+    success: true,
+    data: updated
+  });
 });
 
 // Admin Leads

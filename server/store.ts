@@ -103,6 +103,11 @@ class Store {
     return this.data.orders.find(o => o.id.toLowerCase() === id.toLowerCase().trim());
   }
 
+  getRecentOrderByIdempotency(key: string): Order | undefined {
+    if (!key) return undefined;
+    return this.data.orders.find(o => o.idempotencyKey === key);
+  }
+
   createOrder(order: Order): Order {
     this.data.orders.unshift(order);
     this.saveData(this.data);

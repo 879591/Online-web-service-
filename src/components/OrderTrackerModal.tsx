@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   Search, X, Check, Clock, AlertCircle, ShieldCheck, 
   ExternalLink, Send, ArrowRight, MessageSquare, 
-  Copy, RefreshCw, Smartphone, CreditCard, CheckCircle2 
+  Copy, RefreshCw, Smartphone, CreditCard, CheckCircle2,
+  Download, FileText
 } from 'lucide-react';
 import { Order, OrderStage, Settings } from '../types/index';
 import { 
@@ -10,6 +11,7 @@ import {
   formatDate, createWhatsAppUrl 
 } from '../utils/helpers';
 import { safeApiFetch } from '../utils/api';
+import { downloadInvoicePdf } from '../utils/invoiceGenerator';
 
 interface OrderTrackerModalProps {
   isOpen: boolean;
@@ -268,6 +270,21 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
                   <span className="text-slate-500 block text-[10px]">Agreed Value</span>
                   <span className="text-yellow-400 font-bold">{order.price}</span>
                 </div>
+              </div>
+
+              {/* Download Invoice Button */}
+              <div className="mt-3.5 pt-3 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-2.5">
+                <span className="text-[11px] text-slate-400">
+                  Official invoice document generated for this project order:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => downloadInvoicePdf(order, settings)}
+                  className="w-full sm:w-auto px-4 py-2 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 text-cyan-300 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Download Invoice PDF</span>
+                </button>
               </div>
             </div>
 

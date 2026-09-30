@@ -193,6 +193,7 @@ export default function App() {
         initialServiceId={selectedServiceId}
         initialPackageName={selectedPackageName}
         onOrderSuccess={handleOrderSuccess}
+        onOpenTracker={handleOpenTracker}
       />
 
       <OrderTrackerModal

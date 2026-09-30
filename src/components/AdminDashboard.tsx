@@ -4,11 +4,12 @@ import {
   Clock, AlertCircle, ExternalLink, Save, RefreshCw, X, 
   MessageSquare, Users, FileText, Settings as SettingsIcon, 
   DollarSign, Check, Phone, Mail, Edit3, ArrowRight, Eye, Briefcase,
-  Smartphone, Copy, Sparkles, KeyRound
+  Smartphone, Copy, Sparkles, KeyRound, Download
 } from 'lucide-react';
 import { Order, OrderStage, Lead, LeadStatus, Quote, Settings, Service, Package } from '../types/index';
 import { ORDER_STAGES, getStageColor, formatDate, createWhatsAppUrl } from '../utils/helpers';
 import { safeApiFetch } from '../utils/api';
+import { downloadInvoicePdf } from '../utils/invoiceGenerator';
 
 interface AdminDashboardProps {
   isOpen: boolean;
@@ -29,14 +30,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [passwordInput, setPasswordInput] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [otpInput, setOtpInput] = useState('');
-  const [generatedOtp, setGeneratedOtp] = useState<string | null>(null);
   const [otpPhone, setOtpPhone] = useState<string>('9792006815');
   const [otpSent, setOtpSent] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loginSuccessMsg, setLoginSuccessMsg] = useState<string | null>(null);
   const [loginLoading, setLoginLoading] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
-  const [otpCopied, setOtpCopied] = useState(false);
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<'orders' | 'leads' | 'quotes' | 'settings'>('orders');
@@ -128,6 +128,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   if (!isOpen) return null;
 
+  // Cooldown effect for SMS OTP requests
+  useEffect(() => {
+    if (cooldown > 0) {
+      const timer = setInterval(() => setCooldown(c => c - 1), 1000);
+      return () => clearInterval(timer);
+    }
+  }, [cooldown]);
+
   // 3-Line Auth Handlers
   const handleSendOtp = async () => {
     setOtpLoading(true);
@@ -144,18 +152,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         })
       });
 
-      if (!result.ok || !result.data) {
-        throw new Error(result.error || 'OTP send karne me error aaya.');
+      if (!result.ok) {
+        throw new Error(result.error || 'Failed to send SMS OTP.');
       }
 
-      const data = result.data;
-      setGeneratedOtp(data.otp);
-      setOtpPhone(data.phone || '9792006815');
-      setOtpInput(data.otp); // pre-populate in 3rd line for effortless verification
       setOtpSent(true);
-      setLoginSuccessMsg(`OTP safaltapoorvak mobile number +91 ${data.phone || '9792006815'} par bhej diya gaya hai.`);
+      setCooldown(30);
+      setLoginSuccessMsg('SMS OTP has been sent to your registered phone. Please check your SMS inbox.');
     } catch (err: any) {
-      setLoginError(err.message || 'OTP send karne me error aaya.');
+      setLoginError(err.message || 'SMS OTP could not be sent.');
     } finally {
       setOtpLoading(false);
     }
@@ -366,6 +371,102 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
+  // Direct payment verification from table
+  const handleDirectVerifyPayment = async (order: Order) => {
+    if (!token) return;
+    try {
+      const result = await safeApiFetch<Order>(`/api/admin/orders/${order.id}/verify-payment`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-token': token
+        },
+        body: JSON.stringify({
+          amountVerified: order.price,
+          adminNote: 'Directly verified from orders table by Suraj Maurya.'
+        })
+      });
+
+      if (!result.ok || !result.data) throw new Error(result.error || 'Failed to verify payment');
+      const updated: Order = result.data;
+      if (selectedOrder && selectedOrder.id === order.id) setSelectedOrder(updated);
+      setOrders(orders.map(o => o.id === updated.id ? updated : o));
+      setOrderActionMsg(`Payment for ${order.id} verified!`);
+      setTimeout(() => setOrderActionMsg(null), 3000);
+    } catch (err: any) {
+      alert(err.message || 'Failed to verify payment');
+    }
+  };
+
+  // Resend Confirmation Email
+  const handleResendEmail = async (orderId: string) => {
+    if (!token) return;
+    try {
+      const result = await safeApiFetch<any>(`/api/admin/orders/${orderId}/resend-email`, {
+        method: 'POST',
+        headers: { 'x-admin-token': token }
+      });
+      if (result.ok && result.data) {
+        const updated = result.data.data || result.data;
+        if (selectedOrder && selectedOrder.id === orderId) setSelectedOrder(updated);
+        setOrders(orders.map(o => o.id === orderId ? updated : o));
+        setOrderActionMsg(result.data.result?.status === 'SENT' ? 'Confirmation email sent successfully via Resend!' : `Email: ${result.data.result?.error || 'Failed'}`);
+      } else {
+        setOrderActionMsg(result.error || 'Failed to resend email');
+      }
+      setTimeout(() => setOrderActionMsg(null), 4000);
+    } catch (err: any) {
+      setOrderActionMsg(err.message || 'Error resending email');
+    }
+  };
+
+  // Resend Confirmation SMS
+  const handleResendSms = async (orderId: string) => {
+    if (!token) return;
+    try {
+      const result = await safeApiFetch<any>(`/api/admin/orders/${orderId}/resend-sms`, {
+        method: 'POST',
+        headers: { 'x-admin-token': token }
+      });
+      if (result.ok && result.data) {
+        const updated = result.data.data || result.data;
+        if (selectedOrder && selectedOrder.id === orderId) setSelectedOrder(updated);
+        setOrders(orders.map(o => o.id === orderId ? updated : o));
+        setOrderActionMsg(result.data.result?.status === 'SENT' ? 'Confirmation SMS sent successfully via Twilio!' : `SMS: ${result.data.result?.error || 'Failed'}`);
+      } else {
+        setOrderActionMsg(result.error || 'Failed to resend SMS');
+      }
+      setTimeout(() => setOrderActionMsg(null), 4000);
+    } catch (err: any) {
+      setOrderActionMsg(err.message || 'Error resending SMS');
+    }
+  };
+
+  // Regenerate Invoice
+  const handleRegenerateInvoice = async (orderId: string) => {
+    if (!token) return;
+    try {
+      const result = await safeApiFetch<any>(`/api/admin/orders/${orderId}/regenerate-invoice`, {
+        method: 'POST',
+        headers: { 'x-admin-token': token }
+      });
+      if (result.ok && result.data) {
+        const updated = result.data.data || result.data;
+        if (selectedOrder && selectedOrder.id === orderId) setSelectedOrder(updated);
+        setOrders(orders.map(o => o.id === orderId ? updated : o));
+        setOrderActionMsg('Invoice regenerated successfully!');
+      }
+      setTimeout(() => setOrderActionMsg(null), 3000);
+    } catch (err: any) {
+      setOrderActionMsg(err.message || 'Error regenerating invoice');
+    }
+  };
+
+  // Download Invoice PDF
+  const handleDownloadInvoice = (order: Order) => {
+    downloadInvoicePdf(order, settings);
+  };
+
   // Update Lead Status
   const handleUpdateLeadStatus = async (leadId: string, newStatus: LeadStatus) => {
     if (!token) return;
@@ -562,7 +663,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     type="text"
                     maxLength={6}
                     required
-                    placeholder="Enter 6-Digit OTP"
+                    placeholder="Enter 6-Digit SMS Code"
                     value={otpInput}
                     onChange={(e) => setOtpInput(e.target.value)}
                     className="flex-1 px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white font-mono placeholder-slate-500 focus:outline-none focus:border-cyan-400 tracking-wider"
@@ -570,7 +671,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <button
                     type="button"
                     onClick={handleSendOtp}
-                    disabled={otpLoading}
+                    disabled={otpLoading || cooldown > 0}
                     className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-bold text-xs shrink-0 cursor-pointer disabled:opacity-50 transition flex items-center gap-1.5"
                   >
                     {otpLoading ? (
@@ -578,45 +679,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     ) : (
                       <Smartphone className="w-3.5 h-3.5" />
                     )}
-                    <span>{otpSent ? 'Resend OTP' : 'Get OTP 📲'}</span>
+                    <span>{cooldown > 0 ? `Wait ${cooldown}s` : (otpSent ? 'Resend SMS OTP' : 'Get SMS OTP 📲')}</span>
                   </button>
                 </div>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Secure OTP will be delivered directly to registered number +91 {otpPhone} via Twilio SMS.
+                </p>
               </div>
-
-              {/* OTP Notification Alert Box when OTP is sent */}
-              {generatedOtp && (
-                <div className="p-3.5 rounded-xl bg-gradient-to-br from-emerald-950/60 to-slate-900 border border-emerald-500/40 space-y-2">
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="text-emerald-400 font-bold flex items-center gap-1.5">
-                      <Smartphone className="w-3.5 h-3.5" />
-                      Mobile OTP Generated (+91 {otpPhone}):
-                    </span>
-                    <span className="text-[10px] font-mono text-slate-400">Valid 10 mins</span>
-                  </div>
-                  <div className="flex items-center justify-between bg-black/40 p-2 rounded-lg border border-emerald-500/30">
-                    <span className="text-xl font-mono font-extrabold tracking-widest text-emerald-300 px-1">
-                      {generatedOtp}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleCopyOtp(generatedOtp)}
-                      className="px-2.5 py-1 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold flex items-center gap-1 cursor-pointer"
-                    >
-                      {otpCopied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                      <span>{otpCopied ? 'Copied' : 'Auto-fill'}</span>
-                    </button>
-                  </div>
-                  <a
-                    href={`https://wa.me/91${otpPhone}?text=${encodeURIComponent(`Online Website & Digital Services\nNamaste Suraj Maurya ji,\nAapka Admin Login OTP hai: ${generatedOtp}\nIs code ko website ke 3rd line me daal kar Admin Panel unlock karein.`)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold flex items-center justify-center gap-1.5 transition"
-                  >
-                    <MessageSquare className="w-3 h-3 text-emerald-400" />
-                    <span>WhatsApp par OTP Alert dekhein (+91 {otpPhone})</span>
-                  </a>
-                </div>
-              )}
 
               {/* Submit Button */}
               <button
@@ -842,6 +911,110 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       </div>
                     </div>
 
+                    {/* Notification & Invoice Delivery Status Card */}
+                    <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                          <FileText className="w-3.5 h-3.5 text-cyan-400" />
+                          <span>Invoice & Transactional Notifications Status</span>
+                        </h4>
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadInvoice(selectedOrder)}
+                          className="px-2.5 py-1 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 text-[11px] font-bold flex items-center gap-1.5 transition cursor-pointer"
+                        >
+                          <Download className="w-3 h-3 text-cyan-400" />
+                          <span>Download Invoice PDF</span>
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                        
+                        {/* Email Status */}
+                        <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800/80">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-slate-400 text-[10px] flex items-center gap-1">
+                              <Mail className="w-3 h-3 text-sky-400" /> Email (Resend)
+                            </span>
+                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase font-mono ${
+                              selectedOrder.emailStatus === 'SENT'
+                                ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/40'
+                                : selectedOrder.emailStatus === 'FAILED'
+                                ? 'bg-rose-950 text-rose-300 border border-rose-500/40'
+                                : 'bg-slate-800 text-slate-400'
+                            }`}>
+                              {selectedOrder.emailStatus || 'PENDING'}
+                            </span>
+                          </div>
+                          {selectedOrder.emailError && (
+                            <p className="text-[10px] text-rose-400 truncate mb-1" title={selectedOrder.emailError}>
+                              ❌ {selectedOrder.emailError}
+                            </p>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleResendEmail(selectedOrder.id)}
+                            className="w-full mt-1 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-semibold border border-slate-700 transition cursor-pointer"
+                          >
+                            Resend Email
+                          </button>
+                        </div>
+
+                        {/* SMS Status */}
+                        <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800/80">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-slate-400 text-[10px] flex items-center gap-1">
+                              <Smartphone className="w-3 h-3 text-amber-400" /> SMS (Twilio)
+                            </span>
+                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase font-mono ${
+                              selectedOrder.smsStatus === 'SENT'
+                                ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/40'
+                                : selectedOrder.smsStatus === 'FAILED'
+                                ? 'bg-rose-950 text-rose-300 border border-rose-500/40'
+                                : 'bg-slate-800 text-slate-400'
+                            }`}>
+                              {selectedOrder.smsStatus || 'PENDING'}
+                            </span>
+                          </div>
+                          {selectedOrder.smsError && (
+                            <p className="text-[10px] text-rose-400 truncate mb-1" title={selectedOrder.smsError}>
+                              ❌ {selectedOrder.smsError}
+                            </p>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleResendSms(selectedOrder.id)}
+                            className="w-full mt-1 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-semibold border border-slate-700 transition cursor-pointer"
+                          >
+                            Resend SMS
+                          </button>
+                        </div>
+
+                        {/* Invoice Status */}
+                        <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800/80">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-slate-400 text-[10px] flex items-center gap-1">
+                              <FileText className="w-3 h-3 text-cyan-400" /> Invoice
+                            </span>
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase font-mono bg-cyan-950 text-cyan-300 border border-cyan-500/40">
+                              {selectedOrder.invoiceStatus || 'GENERATED'}
+                            </span>
+                          </div>
+                          <span className="text-[10px] font-mono text-slate-300 block mb-1">
+                            {selectedOrder.invoiceNumber || `INV-${selectedOrder.id}`}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleRegenerateInvoice(selectedOrder.id)}
+                            className="w-full mt-1 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-semibold border border-slate-700 transition cursor-pointer"
+                          >
+                            Regenerate
+                          </button>
+                        </div>
+
+                      </div>
+                    </div>
+
                     {/* Section 1: Change Stage */}
                     <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-3">
                       <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
@@ -1030,62 +1203,143 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <table className="w-full text-left text-xs">
                       <thead className="bg-slate-900/90 text-slate-400 border-b border-slate-800 font-mono text-[11px]">
                         <tr>
-                          <th className="py-3 px-4">Order ID</th>
-                          <th className="py-3 px-4">Client / Brand</th>
-                          <th className="py-3 px-4">Service</th>
-                          <th className="py-3 px-4">Stage</th>
-                          <th className="py-3 px-4">Payment</th>
-                          <th className="py-3 px-4">Price</th>
-                          <th className="py-3 px-4 text-right">Actions</th>
+                          <th className="py-3 px-3.5">Order ID & Date</th>
+                          <th className="py-3 px-3.5">Customer & Contact</th>
+                          <th className="py-3 px-3.5">Service & Package</th>
+                          <th className="py-3 px-3.5">Amount</th>
+                          <th className="py-3 px-3.5">Payment</th>
+                          <th className="py-3 px-3.5">Order Stage</th>
+                          <th className="py-3 px-3.5">Notifications & Invoice</th>
+                          <th className="py-3 px-3.5 text-right">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-800 text-slate-300">
                         {filteredOrders.length > 0 ? (
                           filteredOrders.map(order => (
                             <tr key={order.id} className="hover:bg-slate-900/60 transition">
-                              <td className="py-3 px-4 font-mono font-bold text-white">
-                                {order.id}
-                              </td>
-                              <td className="py-3 px-4">
-                                <span className="font-semibold text-white block">{order.clientName}</span>
-                                <span className="text-[10px] text-slate-500 font-mono">{order.whatsapp}</span>
-                              </td>
-                              <td className="py-3 px-4">
-                                <span className="text-cyan-300 block">{order.serviceName}</span>
-                                <span className="text-[10px] text-slate-500">{order.packageName}</span>
-                              </td>
-                              <td className="py-3 px-4">
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${getStageColor(order.status).bg} ${getStageColor(order.status).text} ${getStageColor(order.status).border}`}>
-                                  {order.status}
+                              <td className="py-3 px-3.5 font-mono">
+                                <span className="font-bold text-white block text-xs">{order.id}</span>
+                                <span className="text-[10px] text-slate-500">
+                                  {order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-IN') : 'Recent'}
                                 </span>
                               </td>
-                              <td className="py-3 px-4">
-                                <span className={`px-2 py-0.5 rounded text-[10px] font-mono ${
+                              
+                              <td className="py-3 px-3.5">
+                                <span className="font-semibold text-white block">{order.clientName}</span>
+                                <span className="text-[10px] text-slate-400 block font-mono">📱 {order.whatsapp}</span>
+                                {order.email && <span className="text-[10px] text-slate-500 block truncate max-w-[130px]">✉️ {order.email}</span>}
+                              </td>
+
+                              <td className="py-3 px-3.5">
+                                <span className="text-cyan-300 block font-medium">{order.serviceName}</span>
+                                <span className="text-[10px] font-mono text-yellow-400">{order.packageName}</span>
+                              </td>
+
+                              <td className="py-3 px-3.5 font-mono font-bold text-yellow-400">
+                                {order.price || order.budget}
+                              </td>
+
+                              <td className="py-3 px-3.5">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
                                   order.paymentStatus === 'Verified'
-                                    ? 'bg-emerald-950 text-emerald-400'
+                                    ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/40'
                                     : order.paymentStatus === 'Verification Submitted'
-                                    ? 'bg-amber-950 text-amber-400 animate-pulse'
-                                    : 'bg-rose-950 text-rose-400'
+                                    ? 'bg-amber-950 text-amber-300 border border-amber-500/40 animate-pulse'
+                                    : 'bg-rose-950 text-rose-300 border border-rose-500/40'
                                 }`}>
                                   {order.paymentStatus}
                                 </span>
                               </td>
-                              <td className="py-3 px-4 font-mono font-semibold text-yellow-400">
-                                {order.price}
+
+                              <td className="py-3 px-3.5">
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${getStageColor(order.status).bg} ${getStageColor(order.status).text} ${getStageColor(order.status).border}`}>
+                                  {order.status}
+                                </span>
                               </td>
-                              <td className="py-3 px-4 text-right">
-                                <button
-                                  onClick={() => openOrderDrawer(order)}
-                                  className="px-2.5 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-semibold cursor-pointer"
-                                >
-                                  Manage →
-                                </button>
+
+                              {/* Notification Delivery Statuses */}
+                              <td className="py-3 px-3.5">
+                                <div className="space-y-1 text-[10px] font-mono">
+                                  {/* Email Badge */}
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-slate-400">Email:</span>
+                                    <span className={`px-1 py-0.2 rounded font-bold ${
+                                      order.emailStatus === 'SENT' ? 'text-emerald-400' : 'text-rose-400'
+                                    }`} title={order.emailError || 'Email Status'}>
+                                      {order.emailStatus === 'SENT' ? '✓ SENT' : `❌ ${order.emailStatus || 'FAILED'}`}
+                                    </span>
+                                  </div>
+
+                                  {/* SMS Badge */}
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-slate-400">SMS:</span>
+                                    <span className={`px-1 py-0.2 rounded font-bold ${
+                                      order.smsStatus === 'SENT' ? 'text-emerald-400' : 'text-rose-400'
+                                    }`} title={order.smsError || 'SMS Status'}>
+                                      {order.smsStatus === 'SENT' ? '✓ SENT' : `❌ ${order.smsStatus || 'FAILED'}`}
+                                    </span>
+                                  </div>
+
+                                  {/* Invoice Badge */}
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-slate-400">Invoice:</span>
+                                    <span className="text-cyan-400 font-bold">
+                                      {order.invoiceStatus || 'GENERATED'}
+                                    </span>
+                                  </div>
+                                </div>
+                              </td>
+
+                              {/* Actions Column */}
+                              <td className="py-3 px-3.5 text-right">
+                                <div className="flex flex-col items-end gap-1.5">
+                                  <button
+                                    onClick={() => openOrderDrawer(order)}
+                                    className="px-2.5 py-1 rounded bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[11px] font-bold cursor-pointer transition w-28 text-center"
+                                  >
+                                    View Order →
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleDownloadInvoice(order)}
+                                    className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[10px] font-semibold cursor-pointer transition w-28 text-center flex items-center justify-center gap-1"
+                                  >
+                                    <Download className="w-2.5 h-2.5 text-cyan-400" />
+                                    <span>Download PDF</span>
+                                  </button>
+
+                                  {order.paymentStatus !== 'Verified' && (
+                                    <button
+                                      onClick={() => handleDirectVerifyPayment(order)}
+                                      className="px-2.5 py-1 rounded bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold cursor-pointer transition w-28 text-center"
+                                    >
+                                      ✓ Verify Pay
+                                    </button>
+                                  )}
+
+                                  <div className="flex gap-1 w-28 justify-end">
+                                    <button
+                                      onClick={() => handleResendEmail(order.id)}
+                                      title="Resend Confirmation Email"
+                                      className="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[9px] font-mono cursor-pointer"
+                                    >
+                                      Mail
+                                    </button>
+                                    <button
+                                      onClick={() => handleResendSms(order.id)}
+                                      title="Resend Confirmation SMS"
+                                      className="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[9px] font-mono cursor-pointer"
+                                    >
+                                      SMS
+                                    </button>
+                                  </div>
+                                </div>
                               </td>
                             </tr>
                           ))
                         ) : (
                           <tr>
-                            <td colSpan={7} className="py-8 text-center text-slate-500">
+                            <td colSpan={8} className="py-8 text-center text-slate-500">
                               No matching orders found.
                             </td>
                           </tr>

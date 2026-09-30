@@ -49,6 +49,15 @@ export interface Order {
   clientNotes?: string;
   internalNotes?: string;
   deliveryUrl?: string;
+  invoiceNumber?: string;
+  invoiceStatus?: 'PENDING' | 'GENERATED' | 'FAILED';
+  emailStatus?: 'PENDING' | 'SENT' | 'FAILED' | 'NOT_CONFIGURED';
+  emailMessageId?: string;
+  emailError?: string;
+  smsStatus?: 'PENDING' | 'SENT' | 'FAILED' | 'NOT_CONFIGURED';
+  smsMessageId?: string;
+  smsError?: string;
+  idempotencyKey?: string;
   history: OrderHistoryItem[];
 }
 
