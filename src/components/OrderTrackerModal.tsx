@@ -9,6 +9,7 @@ import {
   ORDER_STAGES, getStageIndex, getStageColor, 
   formatDate, createWhatsAppUrl 
 } from '../utils/helpers';
+import { safeApiFetch } from '../utils/api';
 
 interface OrderTrackerModalProps {
   isOpen: boolean;
@@ -60,14 +61,12 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
         ...(contactToSearch ? { contact: contactToSearch.trim() } : {})
       });
 
-      const res = await fetch(`/api/orders/track?${query.toString()}`);
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Order not found. Please verify Order ID.');
+      const result = await safeApiFetch<Order>(`/api/orders/track?${query.toString()}`);
+      if (!result.ok || !result.data) {
+        throw new Error(result.error || 'Order not found. Please verify Order ID.');
       }
 
-      const data: Order = await res.json();
-      setOrder(data);
+      setOrder(result.data);
     } catch (err: any) {
       setOrder(null);
       setError(err.message || 'Could not find order.');
@@ -91,7 +90,7 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
 
     setSubmittingUtr(true);
     try {
-      const res = await fetch(`/api/orders/${order.id}/payment-reference`, {
+      const result = await safeApiFetch<Order>(`/api/orders/${order.id}/payment-reference`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -101,12 +100,11 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
         })
       });
 
-      if (!res.ok) {
-        throw new Error('Failed to submit payment reference.');
+      if (!result.ok || !result.data) {
+        throw new Error(result.error || 'Failed to submit payment reference.');
       }
 
-      const updated: Order = await res.json();
-      setOrder(updated);
+      setOrder(result.data);
       setUtrSuccess(true);
       setUtrNumber('');
     } catch (err: any) {

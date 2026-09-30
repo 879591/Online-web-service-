@@ -193,21 +193,26 @@ app.post('/api/orders', (req: Request, res: Response) => {
     notes: `Associated with Order ${orderId}`
   });
 
-  res.status(201).json(createdOrder);
+  res.status(201).setHeader('Content-Type', 'application/json').json({
+    success: true,
+    data: createdOrder,
+    ...createdOrder
+  });
 });
 
 // Client Order Tracking
-app.get('/api/orders/track', (req: Request, res: Response) => {
+app.get(['/api/orders/track', '/orders/track'], (req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'application/json');
   const orderId = (req.query.orderId as string || '').trim();
   const contact = (req.query.contact as string || '').toLowerCase().trim();
 
   if (!orderId) {
-    return res.status(400).json({ error: 'Order ID is required.' });
+    return res.status(400).json({ success: false, error: 'Order ID is required.' });
   }
 
   const order = store.getOrderById(orderId);
   if (!order) {
-    return res.status(404).json({ error: 'Order not found. Please verify your Order ID (format: ORD-XXXXXX).' });
+    return res.status(404).json({ success: false, error: 'Order not found' });
   }
 
   // If client provided a contact (WhatsApp or email), verify match for privacy
@@ -220,26 +225,32 @@ app.get('/api/orders/track', (req: Request, res: Response) => {
 
     if (!phoneMatches && !emailMatches) {
       return res.status(403).json({ 
+        success: false,
         error: 'The WhatsApp number or Email does not match this Order ID. Please recheck your credentials.' 
       });
     }
   }
 
-  res.json(order);
+  res.json({
+    success: true,
+    data: order,
+    ...order
+  });
 });
 
 // Client Payment Reference Submission (Direct UPI / Bank UTR)
-app.post('/api/orders/:id/payment-reference', (req: Request, res: Response) => {
+app.post(['/api/orders/:id/payment-reference', '/orders/:id/payment-reference'], (req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'application/json');
   const orderId = req.params.id;
   const { paymentReference, amount, note, paymentDate, paymentScreenshotUrl } = req.body;
 
   if (!paymentReference || paymentReference.trim().length < 6) {
-    return res.status(400).json({ error: 'Please enter a valid 12-digit UTR / Transaction reference ID.' });
+    return res.status(400).json({ success: false, error: 'Please enter a valid 12-digit UTR / Transaction reference ID.' });
   }
 
   const order = store.getOrderById(orderId);
   if (!order) {
-    return res.status(404).json({ error: 'Order not found' });
+    return res.status(404).json({ success: false, error: 'Order not found' });
   }
 
   const now = new Date().toISOString();
@@ -265,7 +276,11 @@ app.post('/api/orders/:id/payment-reference', (req: Request, res: Response) => {
     history: updatedHistory
   });
 
-  res.json(updated);
+  res.json({
+    success: true,
+    data: updated,
+    ...updated
+  });
 });
 
 // Lead Submission (Contact form, quick inquiry, WhatsApp trigger)
@@ -761,6 +776,26 @@ app.put('/api/admin/quotes/:id', requireAdmin, (req: Request, res: Response) => 
   res.json(updated);
 });
 
+// Catch-all for any unmatched /api/* route: ALWAYS return JSON (never HTML!)
+app.all('/api/*', (req: Request, res: Response) => {
+  res.status(404).setHeader('Content-Type', 'application/json').json({
+    success: false,
+    error: `API route not found: ${req.method} ${req.originalUrl}`
+  });
+});
+
+// Express global error handler: ALWAYS return JSON for /api/*
+app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
+  console.error('Unhandled Server Error:', err);
+  if (req.url.startsWith('/api') || req.headers.accept?.includes('application/json')) {
+    return res.status(500).setHeader('Content-Type', 'application/json').json({
+      success: false,
+      error: err?.message || 'Internal server error occurred.'
+    });
+  }
+  res.status(500).send('Server Error');
+});
+
 // ================= VITE DEV / PRODUCTION INTEGRATION =================
 
 async function startServer() {
@@ -787,7 +822,16 @@ async function startServer() {
   });
 }
 
-startServer().catch(err => {
-  console.error('Failed to start server:', err);
-  process.exit(1);
-});
+// In local dev and standard standalone server, start the listener.
+// In Vercel serverless environment, Vercel invokes the exported app handler in api/index.ts.
+const isDirectRun = Boolean(process.argv[1] && (process.argv[1].endsWith('server.ts') || process.argv[1].endsWith('server.js')));
+
+if (isDirectRun && !process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
+  startServer().catch(err => {
+    console.error('Failed to start server:', err);
+    process.exit(1);
+  });
+}
+
+export default app;
+export { app };

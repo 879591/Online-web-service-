@@ -1,18 +1,39 @@
 import { OrderStage } from '../types/index.ts';
 
-// Clean phone number for WhatsApp links (digits only)
-export function getCleanWhatsApp(phone: string): string {
-  const digits = phone.replace(/\D/g, '');
+// Configurable default owner WhatsApp number
+export const DEFAULT_WHATSAPP_NUMBER = '919792006815';
+
+// Clean phone number for WhatsApp links (international digits only: no +, spaces, hyphens, brackets)
+export function getCleanWhatsApp(phone?: string): string {
+  const envPhone = (
+    (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_WHATSAPP_NUMBER) ||
+    (typeof import.meta !== 'undefined' && (import.meta as any).env?.NEXT_PUBLIC_WHATSAPP_NUMBER) ||
+    ''
+  ).toString().trim();
+
+  const raw = (phone && phone.trim()) || envPhone || DEFAULT_WHATSAPP_NUMBER;
+  const digits = raw.replace(/\D/g, '');
+
+  if (!digits) {
+    return DEFAULT_WHATSAPP_NUMBER;
+  }
   if (digits.length === 10) {
     return `91${digits}`;
+  }
+  if (digits.length === 11 && digits.startsWith('0')) {
+    return `91${digits.slice(1)}`;
+  }
+  if (digits.length === 12 && digits.startsWith('91')) {
+    return digits;
   }
   return digits;
 }
 
-// Generate direct WhatsApp chat URL with pre-filled message
-export function createWhatsAppUrl(phone: string, text: string): string {
+// Generate direct WhatsApp chat URL with safely URL-encoded pre-filled message
+export function createWhatsAppUrl(phone?: string, text?: string): string {
   const cleanPhone = getCleanWhatsApp(phone);
-  return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
+  const message = text || "Hello Suraj, I am interested in your Online Website & Digital Services. I want to discuss my project.";
+  return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
 }
 
 // Generate UPI intent URI for direct mobile app payment

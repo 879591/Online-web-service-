@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { Order, OrderStage, Lead, LeadStatus, Quote, Settings, Service, Package } from '../types/index';
 import { ORDER_STAGES, getStageColor, formatDate, createWhatsAppUrl } from '../utils/helpers';
+import { safeApiFetch } from '../utils/api';
 
 interface AdminDashboardProps {
   isOpen: boolean;
@@ -134,7 +135,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setLoginSuccessMsg(null);
 
     try {
-      const res = await fetch('/api/admin/send-otp', {
+      const result = await safeApiFetch<any>('/api/admin/send-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -143,11 +144,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         })
       });
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'OTP send karne me error aaya.');
+      if (!result.ok || !result.data) {
+        throw new Error(result.error || 'OTP send karne me error aaya.');
       }
 
+      const data = result.data;
       setGeneratedOtp(data.otp);
       setOtpPhone(data.phone || '9792006815');
       setOtpInput(data.otp); // pre-populate in 3rd line for effortless verification
@@ -179,7 +180,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setLoginError(null);
 
     try {
-      const res = await fetch('/api/admin/login-verify', {
+      const result = await safeApiFetch<any>('/api/admin/login-verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -189,11 +190,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         })
       });
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Verification fail ho gaya.');
+      if (!result.ok || !result.data) {
+        throw new Error(result.error || 'Verification fail ho gaya.');
       }
 
+      const data = result.data;
       localStorage.setItem('suraj_admin_token', data.token);
       setToken(data.token);
       setNameInput('');
@@ -237,16 +238,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       const headers = { 'x-admin-token': token };
 
       const [ordersRes, leadsRes, quotesRes, statsRes] = await Promise.all([
-        fetch('/api/admin/orders', { headers }),
-        fetch('/api/admin/leads', { headers }),
-        fetch('/api/admin/quotes', { headers }),
-        fetch('/api/admin/stats', { headers })
+        safeApiFetch<Order[]>('/api/admin/orders', { headers }),
+        safeApiFetch<Lead[]>('/api/admin/leads', { headers }),
+        safeApiFetch<Quote[]>('/api/admin/quotes', { headers }),
+        safeApiFetch<any>('/api/admin/stats', { headers })
       ]);
 
-      if (ordersRes.ok) setOrders(await ordersRes.json());
-      if (leadsRes.ok) setLeads(await leadsRes.json());
-      if (quotesRes.ok) setQuotes(await quotesRes.json());
-      if (statsRes.ok) setStats(await statsRes.json());
+      if (ordersRes.ok && ordersRes.data) setOrders(ordersRes.data);
+      if (leadsRes.ok && leadsRes.data) setLeads(leadsRes.data);
+      if (quotesRes.ok && quotesRes.data) setQuotes(quotesRes.data);
+      if (statsRes.ok && statsRes.data) setStats(statsRes.data);
     } catch (err) {
       console.error('Error loading admin data:', err);
     } finally {
@@ -276,7 +277,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (!selectedOrder || !token) return;
     setUpdatingOrder(true);
     try {
-      const res = await fetch(`/api/admin/orders/${selectedOrder.id}/status`, {
+      const result = await safeApiFetch<Order>(`/api/admin/orders/${selectedOrder.id}/status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -288,8 +289,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         })
       });
 
-      if (!res.ok) throw new Error('Failed to update stage');
-      const updated: Order = await res.json();
+      if (!result.ok || !result.data) throw new Error(result.error || 'Failed to update stage');
+      const updated: Order = result.data;
       setSelectedOrder(updated);
       setOrders(orders.map(o => o.id === updated.id ? updated : o));
       setOrderActionMsg('Stage updated successfully!');
@@ -307,7 +308,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (!selectedOrder || !token) return;
     setUpdatingOrder(true);
     try {
-      const res = await fetch(`/api/admin/orders/${selectedOrder.id}/details`, {
+      const result = await safeApiFetch<Order>(`/api/admin/orders/${selectedOrder.id}/details`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -322,8 +323,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         })
       });
 
-      if (!res.ok) throw new Error('Failed to update details');
-      const updated: Order = await res.json();
+      if (!result.ok || !result.data) throw new Error(result.error || 'Failed to update details');
+      const updated: Order = result.data;
       setSelectedOrder(updated);
       setOrders(orders.map(o => o.id === updated.id ? updated : o));
       setOrderActionMsg('Order details saved!');
@@ -340,7 +341,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (!selectedOrder || !token) return;
     setUpdatingOrder(true);
     try {
-      const res = await fetch(`/api/admin/orders/${selectedOrder.id}/verify-payment`, {
+      const result = await safeApiFetch<Order>(`/api/admin/orders/${selectedOrder.id}/verify-payment`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -352,8 +353,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         })
       });
 
-      if (!res.ok) throw new Error('Failed to verify payment');
-      const updated: Order = await res.json();
+      if (!result.ok || !result.data) throw new Error(result.error || 'Failed to verify payment');
+      const updated: Order = result.data;
       setSelectedOrder(updated);
       setOrders(orders.map(o => o.id === updated.id ? updated : o));
       setOrderActionMsg('Direct payment verified manually!');
@@ -369,7 +370,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const handleUpdateLeadStatus = async (leadId: string, newStatus: LeadStatus) => {
     if (!token) return;
     try {
-      const res = await fetch(`/api/admin/leads/${leadId}`, {
+      const result = await safeApiFetch<Lead>(`/api/admin/leads/${leadId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -377,8 +378,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         },
         body: JSON.stringify({ status: newStatus })
       });
-      if (res.ok) {
-        const updated: Lead = await res.json();
+      if (result.ok && result.data) {
+        const updated: Lead = result.data;
         setLeads(leads.map(l => l.id === updated.id ? updated : l));
       }
     } catch (err) {
@@ -391,7 +392,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     e.preventDefault();
     if (!token) return;
     try {
-      const res = await fetch('/api/settings', {
+      const result = await safeApiFetch<Settings>('/api/settings', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -399,11 +400,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         },
         body: JSON.stringify(settingsForm)
       });
-      if (res.ok) {
-        const updated: Settings = await res.json();
+      if (result.ok && result.data) {
+        const updated: Settings = result.data;
         onSettingsUpdate(updated);
         setSettingsSaveMsg('Business details updated successfully!');
         setTimeout(() => setSettingsSaveMsg(null), 3000);
+      } else {
+        setSettingsSaveMsg(result.error || 'Failed to update settings');
       }
     } catch (err) {
       console.error(err);
@@ -1236,6 +1239,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4" />
                     <span>{settingsSaveMsg}</span>
+                  </div>
+                )}
+
+                {/* Configuration Health Warning Banners */}
+                {(!settingsForm.whatsappNumber || settingsForm.whatsappNumber.replace(/\D/g, '').length < 10) && (
+                  <div className="p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-300 text-xs flex items-start gap-2.5">
+                    <AlertCircle className="w-5 h-5 shrink-0 text-rose-400 mt-0.5" />
+                    <div>
+                      <p className="font-bold text-rose-200">Critical Configuration Warning: WhatsApp Number Missing or Invalid</p>
+                      <p className="text-rose-300/90 text-[11px] mt-0.5">
+                        Client WhatsApp buttons and order notifications require a valid 10-digit mobile number (e.g. 9792006815). Please set your active WhatsApp number below.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {!settingsForm.upiId?.trim() && (
+                  <div className="p-3 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-amber-400" />
+                    <span>Payment Configuration Notice: Official UPI ID is not configured yet. Manual bank details will be shown to clients.</span>
                   </div>
                 )}
 

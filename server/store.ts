@@ -19,8 +19,10 @@ export interface DatabaseSchema {
   settings: Settings;
 }
 
-const DATA_DIR = path.resolve('data');
+const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+const DATA_DIR = isServerless ? path.join('/tmp', 'suraj_agency_data') : path.resolve('data');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
+const SEED_FILE = path.resolve('data', 'db.json');
 
 class Store {
   private data: DatabaseSchema;
@@ -31,10 +33,6 @@ class Store {
 
   private loadData(): DatabaseSchema {
     try {
-      if (!fs.existsSync(DATA_DIR)) {
-        fs.mkdirSync(DATA_DIR, { recursive: true });
-      }
-
       if (fs.existsSync(DB_FILE)) {
         const raw = fs.readFileSync(DB_FILE, 'utf-8');
         const parsed = JSON.parse(raw);
@@ -48,6 +46,23 @@ class Store {
           faqs: parsed.faqs || initialFAQs,
           settings: { ...initialSettings, ...(parsed.settings || {}) }
         };
+      }
+
+      if (fs.existsSync(SEED_FILE)) {
+        const raw = fs.readFileSync(SEED_FILE, 'utf-8');
+        const parsed = JSON.parse(raw);
+        const data: DatabaseSchema = {
+          orders: parsed.orders || initialOrders,
+          leads: parsed.leads || initialLeads,
+          quotes: parsed.quotes || initialQuotes,
+          services: parsed.services || initialServices,
+          packages: parsed.packages || initialPackages,
+          portfolio: parsed.portfolio || initialPortfolio,
+          faqs: parsed.faqs || initialFAQs,
+          settings: { ...initialSettings, ...(parsed.settings || {}) }
+        };
+        this.saveData(data);
+        return data;
       }
     } catch (err) {
       console.error('Error reading db.json, falling back to initial seed:', err);
@@ -75,7 +90,7 @@ class Store {
       }
       fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
     } catch (err) {
-      console.error('Error saving data to db.json:', err);
+      console.warn('Could not persist to disk, keeping in memory:', err);
     }
   }
 

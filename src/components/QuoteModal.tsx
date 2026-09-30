@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { Settings, Quote } from '../types/index';
 import { createWhatsAppUrl } from '../utils/helpers';
+import { safeApiFetch } from '../utils/api';
 
 interface QuoteModalProps {
   isOpen: boolean;
@@ -42,7 +43,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
     setError(null);
 
     try {
-      const res = await fetch('/api/quotes', {
+      const result = await safeApiFetch<Quote>('/api/quotes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -56,12 +57,11 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
         })
       });
 
-      if (!res.ok) {
-        throw new Error('Failed to submit quote request.');
+      if (!result.ok || !result.data) {
+        throw new Error(result.error || 'Failed to submit quote request.');
       }
 
-      const data: Quote = await res.json();
-      setCreatedQuote(data);
+      setCreatedQuote(result.data);
     } catch (err: any) {
       setError(err.message || 'Something went wrong.');
     } finally {

@@ -23,6 +23,7 @@ import {
   initialFAQs, initialSettings 
 } from '../server/data';
 import { Service, Package, PortfolioItem, FAQItem, Settings, Order } from './types/index';
+import { safeApiFetch } from './utils/api';
 
 export default function App() {
   const [services, setServices] = useState<Service[]>(initialServices);
@@ -50,20 +51,20 @@ export default function App() {
     const fetchData = async () => {
       try {
         const [servicesRes, packagesRes, portfolioRes, faqsRes, settingsRes] = await Promise.all([
-          fetch('/api/services'),
-          fetch('/api/packages'),
-          fetch('/api/portfolio'),
-          fetch('/api/faqs'),
-          fetch('/api/settings')
+          safeApiFetch<Service[]>('/api/services'),
+          safeApiFetch<Package[]>('/api/packages'),
+          safeApiFetch<PortfolioItem[]>('/api/portfolio'),
+          safeApiFetch<FAQItem[]>('/api/faqs'),
+          safeApiFetch<Settings>('/api/settings')
         ]);
 
-        if (servicesRes.ok) setServices(await servicesRes.json());
-        if (packagesRes.ok) setPackages(await packagesRes.json());
-        if (portfolioRes.ok) setPortfolio(await portfolioRes.json());
-        if (faqsRes.ok) setFaqs(await faqsRes.json());
-        if (settingsRes.ok) setSettings(await settingsRes.json());
+        if (servicesRes.ok && servicesRes.data) setServices(servicesRes.data);
+        if (packagesRes.ok && packagesRes.data) setPackages(packagesRes.data);
+        if (portfolioRes.ok && portfolioRes.data) setPortfolio(portfolioRes.data);
+        if (faqsRes.ok && faqsRes.data) setFaqs(faqsRes.data);
+        if (settingsRes.ok && settingsRes.data) setSettings(settingsRes.data);
       } catch (err) {
-        console.error('API load error, using default state:', err);
+        console.error('API load error, keeping default state:', err);
       }
     };
 

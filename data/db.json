@@ -1,6 +1,51 @@
 {
   "orders": [
     {
+      "id": "ORD-346690",
+      "clientName": "Aman Verma",
+      "brandName": "Verma Logistics",
+      "whatsapp": "9792006815",
+      "email": "aman@example.com",
+      "serviceId": "custom-website",
+      "serviceName": "Custom Digital Solution",
+      "packageName": "Pro Plan",
+      "projectDescription": "Need a modern responsive web portal with shipment tracking",
+      "requiredFeatures": [],
+      "referenceWebsite": "",
+      "budget": "₹25,000",
+      "deadline": "7 Days",
+      "additionalNotes": "[Payment Note]: Paid full project amount via PhonePe UPI",
+      "fileReferenceUrl": "",
+      "createdAt": "2026-09-30T04:06:01.924Z",
+      "updatedAt": "2026-09-30T04:06:24.538Z",
+      "status": "Order Received",
+      "price": "₹25,000",
+      "paymentStatus": "Verified",
+      "history": [
+        {
+          "stage": "Order Received",
+          "timestamp": "2026-09-30T04:06:01.924Z",
+          "note": "Order registered successfully. Requirement review initiated by Suraj Maurya."
+        },
+        {
+          "stage": "Order Received",
+          "timestamp": "2026-09-30T04:06:20.178Z",
+          "note": "Client submitted payment reference UTR: UTR987654321012 for amount ₹25000 on 2026-09-30. Pending manual admin verification."
+        },
+        {
+          "stage": "Payment Verified",
+          "timestamp": "2026-09-30T04:06:24.538Z",
+          "note": "Verified in HDFC Bank statement via UPI reference UTR987654321012"
+        }
+      ],
+      "paymentReference": "UTR987654321012",
+      "paymentSubmissionDate": "2026-09-30T04:06:20.178Z",
+      "paymentDate": "2026-09-30",
+      "paidAmount": "₹25,000",
+      "paymentVerifiedDate": "2026-09-30T04:06:24.538Z",
+      "paymentAdminNote": "Verified in HDFC Bank statement via UPI reference UTR987654321012"
+    },
+    {
       "id": "ORD-568767",
       "clientName": "Rohan Sharma",
       "brandName": "Rohan Enterprises",
@@ -147,6 +192,18 @@
     }
   ],
   "leads": [
+    {
+      "id": "LD-8360",
+      "name": "Aman Verma",
+      "phone": "9792006815",
+      "email": "aman@example.com",
+      "service": "Custom Digital Solution",
+      "budget": "₹25,000",
+      "message": "Order submitted (#ORD-346690): Need a modern responsive web portal with shipment tracking...",
+      "date": "2026-09-30T04:06:01.924Z",
+      "status": "New",
+      "notes": "Associated with Order ORD-346690"
+    },
     {
       "id": "LD-4968",
       "name": "Anita Roy",

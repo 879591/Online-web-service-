@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { Settings, Service } from '../types/index';
 import { createWhatsAppUrl } from '../utils/helpers';
+import { safeApiFetch } from '../utils/api';
 
 interface ContactSectionProps {
   settings: Settings;
@@ -36,14 +37,14 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ settings, servic
     setError(null);
 
     try {
-      const res = await fetch('/api/leads', {
+      const result = await safeApiFetch('/api/leads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       });
 
-      if (!res.ok) {
-        throw new Error('Failed to submit message. Please try again.');
+      if (!result.ok) {
+        throw new Error(result.error || 'Failed to submit message. Please try again.');
       }
 
       setSubmitted(true);

@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { Service, Package, Settings, Order } from '../types/index';
 import { createWhatsAppUrl } from '../utils/helpers';
+import { safeApiFetch } from '../utils/api';
 
 interface OrderModalProps {
   isOpen: boolean;
@@ -130,18 +131,17 @@ export const OrderModal: React.FC<OrderModalProps> = ({
         fileReferenceUrl: fileReferenceUrl.trim()
       };
 
-      const res = await fetch('/api/orders', {
+      const result = await safeApiFetch<Order>('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to submit order.');
+      if (!result.ok || !result.data) {
+        throw new Error(result.error || 'Failed to submit order.');
       }
 
-      const orderData: Order = await res.json();
+      const orderData: Order = result.data;
       setCreatedOrder(orderData);
       setStep('confirmation');
       onOrderSuccess(orderData);
