@@ -15,6 +15,7 @@ interface OrderModalProps {
   initialServiceId?: string;
   initialPackageName?: string;
   onOrderSuccess: (order: Order) => void;
+  onOpenTracker?: (orderId?: string) => void;
 }
 
 export const OrderModal: React.FC<OrderModalProps> = ({
@@ -25,11 +26,13 @@ export const OrderModal: React.FC<OrderModalProps> = ({
   settings,
   initialServiceId,
   initialPackageName,
-  onOrderSuccess
+  onOrderSuccess,
+  onOpenTracker
 }) => {
   const [step, setStep] = useState<'form' | 'confirmation'>('form');
   const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
   const [copiedOrderId, setCopiedOrderId] = useState(false);
+  const [copiedUpi, setCopiedUpi] = useState(false);
 
   // Form State
   const [clientName, setClientName] = useState('');
@@ -83,8 +86,26 @@ export const OrderModal: React.FC<OrderModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!clientName || !whatsapp || !projectDescription) {
-      setError('Please fill in your Name, WhatsApp Number, and Project Description.');
+    if (loading) return;
+
+    if (!clientName.trim() || clientName.trim().length < 2) {
+      setError('Please enter your full name (minimum 2 characters).');
+      return;
+    }
+
+    const cleanPhone = whatsapp.replace(/\D/g, '');
+    if (cleanPhone.length < 10) {
+      setError('Please enter a valid 10-digit WhatsApp number.');
+      return;
+    }
+
+    if (email && email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+
+    if (!projectDescription.trim() || projectDescription.trim().length < 10) {
+      setError('Please provide your project description (minimum 10 characters).');
       return;
     }
 
@@ -93,20 +114,20 @@ export const OrderModal: React.FC<OrderModalProps> = ({
 
     try {
       const payload = {
-        clientName,
-        brandName: brandName || clientName,
-        whatsapp,
-        email,
+        clientName: clientName.trim(),
+        brandName: (brandName || clientName).trim(),
+        whatsapp: whatsapp.trim(),
+        email: email.trim(),
         serviceId,
         serviceName: currentService ? currentService.name : 'Digital Service',
         packageName,
-        projectDescription,
+        projectDescription: projectDescription.trim(),
         requiredFeatures: selectedFeatures,
-        referenceWebsite,
+        referenceWebsite: referenceWebsite.trim(),
         budget,
         deadline,
-        additionalNotes,
-        fileReferenceUrl
+        additionalNotes: additionalNotes.trim(),
+        fileReferenceUrl: fileReferenceUrl.trim()
       };
 
       const res = await fetch('/api/orders', {
@@ -136,6 +157,12 @@ export const OrderModal: React.FC<OrderModalProps> = ({
     navigator.clipboard.writeText(createdOrder.id);
     setCopiedOrderId(true);
     setTimeout(() => setCopiedOrderId(false), 2500);
+  };
+
+  const copyUpiId = () => {
+    navigator.clipboard.writeText(settings.upiId);
+    setCopiedUpi(true);
+    setTimeout(() => setCopiedUpi(false), 2500);
   };
 
   const whatsAppOrderUrl = createdOrder
@@ -454,37 +481,70 @@ Please review my requirements and confirm the next steps.`
               </p>
             </div>
 
-            {/* Next Steps Instructions */}
-            <div className="bg-[#0f172a] p-4 rounded-xl border border-slate-800 text-left text-xs space-y-2 max-w-md mx-auto">
-              <strong className="text-white block font-bold">Important Next Steps:</strong>
-              <ol className="list-decimal list-inside space-y-1.5 text-slate-300 text-[11px]">
-                <li>
-                  <strong className="text-white">Notify Suraj on WhatsApp:</strong> Click the button below to send your Order ID.
-                </li>
-                <li>
-                  <strong className="text-white">Direct Payment:</strong> Transfer agreed advance to official UPI ({settings.upiId}) or Bank Account.
-                </li>
-                <li>
-                  <strong className="text-white">Submit UTR:</strong> Go to "Track Order" anytime to submit your transaction reference.
-                </li>
-              </ol>
+            {/* Direct Payment Instructions Box */}
+            <div className="bg-[#0f172a] p-4 rounded-xl border border-yellow-500/30 text-left text-xs space-y-3 max-w-md mx-auto">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-yellow-400 flex items-center gap-1.5 text-xs">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                  Direct Advance Payment Details
+                </span>
+                <span className="text-[10px] font-mono bg-yellow-950 text-yellow-300 px-2 py-0.5 rounded border border-yellow-700">
+                  Zero Gateway Fee
+                </span>
+              </div>
+
+              {/* UPI Field */}
+              <div className="bg-slate-900 p-2.5 rounded-lg border border-slate-800 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] text-slate-400 block font-mono">Official UPI ID:</span>
+                  <span className="font-bold text-white font-mono text-sm">{settings.upiId}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={copyUpiId}
+                  className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 border border-slate-700 cursor-pointer flex items-center gap-1"
+                >
+                  {copiedUpi ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-cyan-400" />}
+                  <span>{copiedUpi ? 'Copied' : 'Copy UPI'}</span>
+                </button>
+              </div>
+
+              {/* Bank Summary */}
+              <div className="bg-slate-900/60 p-2.5 rounded-lg border border-slate-800/80 text-[11px] text-slate-300 space-y-1">
+                <div>Account: <strong className="text-white font-mono">{settings.accountNumber}</strong> ({settings.bankName})</div>
+                <div>IFSC: <strong className="text-yellow-400 font-mono">{settings.ifscCode}</strong> • Payee: <strong className="text-white">{settings.accountHolder}</strong></div>
+              </div>
             </div>
 
-            {/* WhatsApp Notify Button */}
-            <div className="space-y-2 max-w-md mx-auto">
+            {/* Next Step Action Buttons */}
+            <div className="space-y-2.5 max-w-md mx-auto">
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  if (onOpenTracker && createdOrder) {
+                    onOpenTracker(createdOrder.id);
+                  }
+                }}
+                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-yellow-400 via-amber-400 to-cyan-400 hover:from-yellow-300 hover:to-cyan-300 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-yellow-500/25 transition cursor-pointer"
+              >
+                <span>Proceed to Submit Payment Reference (UTR) →</span>
+              </button>
+
               <a
                 href={whatsAppOrderUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/25 transition"
+                className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/25 transition"
               >
                 <MessageSquare className="w-4 h-4" />
                 <span>Send Order Confirmation to Suraj on WhatsApp</span>
               </a>
 
               <button
+                type="button"
                 onClick={onClose}
-                className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition"
+                className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition cursor-pointer"
               >
                 Close & Return to Website
               </button>

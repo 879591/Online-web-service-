@@ -2,13 +2,15 @@ export type OrderStage =
   | 'Order Received'
   | 'Requirement Review'
   | 'Payment Pending'
+  | 'Payment Submitted'
   | 'Payment Verified'
   | 'Work Started'
   | 'Design/Development'
   | 'Client Review'
   | 'Revision'
   | 'Completed'
-  | 'Delivered';
+  | 'Delivered'
+  | 'Cancelled';
 
 export interface OrderHistoryItem {
   stage: OrderStage;
@@ -37,9 +39,11 @@ export interface Order {
   status: OrderStage;
   price: string;
   paidAmount?: string;
-  paymentStatus: 'Pending' | 'Verification Submitted' | 'Verified';
+  paymentStatus: 'Pending' | 'Verification Submitted' | 'Verified' | 'Rejected';
   paymentReference?: string;
   paymentSubmissionDate?: string;
+  paymentDate?: string;
+  paymentScreenshotUrl?: string;
   paymentVerifiedDate?: string;
   paymentAdminNote?: string;
   clientNotes?: string;

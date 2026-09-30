@@ -57,6 +57,8 @@ export function getStageColor(stage: OrderStage): { bg: string; text: string; bo
       return { bg: 'bg-cyan-500/10', text: 'text-cyan-400', border: 'border-cyan-500/30' };
     case 'Payment Pending':
       return { bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/30' };
+    case 'Payment Submitted':
+      return { bg: 'bg-yellow-500/20', text: 'text-yellow-300', border: 'border-yellow-500/40' };
     case 'Payment Verified':
       return { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/30' };
     case 'Work Started':
@@ -71,6 +73,8 @@ export function getStageColor(stage: OrderStage): { bg: string; text: string; bo
       return { bg: 'bg-teal-500/10', text: 'text-teal-400', border: 'border-teal-500/30' };
     case 'Delivered':
       return { bg: 'bg-emerald-500/20', text: 'text-emerald-300', border: 'border-emerald-400/50' };
+    case 'Cancelled':
+      return { bg: 'bg-rose-500/20', text: 'text-rose-400', border: 'border-rose-500/40' };
     default:
       return { bg: 'bg-slate-800', text: 'text-slate-300', border: 'border-slate-700' };
   }

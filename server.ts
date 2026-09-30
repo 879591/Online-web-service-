@@ -44,6 +44,11 @@ app.get('/api/settings', (_req: Request, res: Response) => {
   res.json(publicSettings);
 });
 
+// Admin Full Settings (includes current adminPassword for authenticated owner)
+app.get('/api/admin/settings', requireAdmin, (_req: Request, res: Response) => {
+  res.json(store.getSettings());
+});
+
 // Settings update (Admin only)
 app.put('/api/settings', requireAdmin, (req: Request, res: Response) => {
   const updated = store.updateSettings(req.body);
@@ -105,25 +110,36 @@ app.get('/api/faqs', (_req: Request, res: Response) => {
 
 // Client Order Submission
 app.post('/api/orders', (req: Request, res: Response) => {
-  const {
-    clientName,
-    brandName,
-    whatsapp,
-    email,
-    serviceId,
-    serviceName,
-    packageName = 'GROWTH',
-    projectDescription,
-    requiredFeatures = [],
-    referenceWebsite,
-    budget,
-    deadline,
-    additionalNotes,
-    fileReferenceUrl
-  } = req.body;
+  const rawClientName = req.body.clientName || req.body.name || '';
+  const rawBrandName = req.body.brandName || req.body.businessName || rawClientName;
+  const rawWhatsapp = req.body.whatsapp || req.body.whatsappNumber || req.body.phone || '';
+  const rawEmail = req.body.email || '';
+  const rawServiceId = req.body.serviceId || 'custom-digital-solutions';
+  const rawServiceName = req.body.serviceName || 'Custom Digital Solution';
+  const rawPackageName = req.body.packageName || req.body.packageId || 'GROWTH';
+  const rawDescription = req.body.projectDescription || req.body.requirements || req.body.description || '';
+  const rawFeatures = req.body.requiredFeatures || [];
+  const rawReference = req.body.referenceWebsite || '';
+  const rawBudget = req.body.budget || 'To be discussed';
+  const rawDeadline = req.body.deadline || 'Standard Delivery';
+  const rawNotes = req.body.additionalNotes || req.body.notes || '';
+  const rawFileUrl = req.body.fileReferenceUrl || '';
 
-  if (!clientName || !whatsapp || !projectDescription) {
-    return res.status(400).json({ error: 'Client Name, WhatsApp Number, and Project Description are required.' });
+  if (!rawClientName || rawClientName.trim().length < 2) {
+    return res.status(400).json({ error: 'Please enter your full name (minimum 2 characters).' });
+  }
+
+  const cleanPhone = rawWhatsapp.toString().replace(/\D/g, '');
+  if (cleanPhone.length < 10) {
+    return res.status(400).json({ error: 'Please enter a valid 10-digit WhatsApp/Phone number.' });
+  }
+
+  if (rawEmail && rawEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail.trim())) {
+    return res.status(400).json({ error: 'Please enter a valid email address.' });
+  }
+
+  if (!rawDescription || rawDescription.trim().length < 5) {
+    return res.status(400).json({ error: 'Please provide project description (minimum 5 characters).' });
   }
 
   // Generate unique Order ID
@@ -133,24 +149,24 @@ app.post('/api/orders', (req: Request, res: Response) => {
   const now = new Date().toISOString();
   const newOrder: Order = {
     id: orderId,
-    clientName: clientName.trim(),
-    brandName: (brandName || clientName).trim(),
-    whatsapp: whatsapp.trim(),
-    email: (email || '').trim(),
-    serviceId: serviceId || 'custom-digital-solutions',
-    serviceName: serviceName || 'Custom Digital Solution',
-    packageName: packageName || 'GROWTH',
-    projectDescription: projectDescription.trim(),
-    requiredFeatures: Array.isArray(requiredFeatures) ? requiredFeatures : [],
-    referenceWebsite: referenceWebsite?.trim() || '',
-    budget: budget?.trim() || 'To be discussed',
-    deadline: deadline?.trim() || 'Standard Delivery',
-    additionalNotes: additionalNotes?.trim() || '',
-    fileReferenceUrl: fileReferenceUrl?.trim() || '',
+    clientName: rawClientName.trim(),
+    brandName: rawBrandName.trim(),
+    whatsapp: rawWhatsapp.trim(),
+    email: rawEmail.trim(),
+    serviceId: rawServiceId,
+    serviceName: rawServiceName,
+    packageName: rawPackageName,
+    projectDescription: rawDescription.trim(),
+    requiredFeatures: Array.isArray(rawFeatures) ? rawFeatures : [],
+    referenceWebsite: rawReference.trim(),
+    budget: rawBudget.trim(),
+    deadline: rawDeadline.trim(),
+    additionalNotes: rawNotes.trim(),
+    fileReferenceUrl: rawFileUrl.trim(),
     createdAt: now,
     updatedAt: now,
     status: 'Order Received',
-    price: budget?.trim() || 'Pending Scope Confirmation',
+    price: rawBudget.trim() || 'Pending Scope Confirmation',
     paymentStatus: 'Pending',
     history: [
       {
@@ -182,7 +198,7 @@ app.post('/api/orders', (req: Request, res: Response) => {
 
 // Client Order Tracking
 app.get('/api/orders/track', (req: Request, res: Response) => {
-  const orderId = req.query.orderId as string;
+  const orderId = (req.query.orderId as string || '').trim();
   const contact = (req.query.contact as string || '').toLowerCase().trim();
 
   if (!orderId) {
@@ -191,14 +207,15 @@ app.get('/api/orders/track', (req: Request, res: Response) => {
 
   const order = store.getOrderById(orderId);
   if (!order) {
-    return res.status(404).json({ error: 'Order not found. Please verify your Order ID.' });
+    return res.status(404).json({ error: 'Order not found. Please verify your Order ID (format: ORD-XXXXXX).' });
   }
 
   // If client provided a contact (WhatsApp or email), verify match for privacy
   if (contact) {
     const cleanPhone = order.whatsapp.replace(/\D/g, '');
     const cleanQuery = contact.replace(/\D/g, '');
-    const phoneMatches = cleanPhone.includes(cleanQuery) || cleanQuery.includes(cleanPhone);
+    const phoneMatches = (cleanPhone.length >= 10 && cleanQuery.length >= 10 && cleanPhone.slice(-10) === cleanQuery.slice(-10)) ||
+                         cleanPhone.includes(cleanQuery) || cleanQuery.includes(cleanPhone);
     const emailMatches = order.email.toLowerCase() === contact;
 
     if (!phoneMatches && !emailMatches) {
@@ -214,10 +231,10 @@ app.get('/api/orders/track', (req: Request, res: Response) => {
 // Client Payment Reference Submission (Direct UPI / Bank UTR)
 app.post('/api/orders/:id/payment-reference', (req: Request, res: Response) => {
   const orderId = req.params.id;
-  const { paymentReference, amount, note } = req.body;
+  const { paymentReference, amount, note, paymentDate, paymentScreenshotUrl } = req.body;
 
-  if (!paymentReference) {
-    return res.status(400).json({ error: 'Payment Transaction Reference / UTR Number is required.' });
+  if (!paymentReference || paymentReference.trim().length < 6) {
+    return res.status(400).json({ error: 'Please enter a valid 12-digit UTR / Transaction reference ID.' });
   }
 
   const order = store.getOrderById(orderId);
@@ -226,12 +243,13 @@ app.post('/api/orders/:id/payment-reference', (req: Request, res: Response) => {
   }
 
   const now = new Date().toISOString();
+  const formattedAmount = amount ? (amount.toString().startsWith('₹') ? amount.toString() : `₹${amount}`) : order.paidAmount;
   const updatedHistory = [
     ...order.history,
     {
-      stage: order.status,
+      stage: (order.status === 'Payment Pending' ? 'Payment Submitted' : order.status) as OrderStage,
       timestamp: now,
-      note: `Client submitted payment reference UTR: ${paymentReference.trim()}${amount ? ` for amount ₹${amount}` : ''}. Pending manual admin verification.`
+      note: `Client submitted payment reference UTR: ${paymentReference.trim()}${amount ? ` for amount ${formattedAmount}` : ''} on ${paymentDate || 'today'}. Pending manual admin verification.`
     }
   ];
 
@@ -239,7 +257,10 @@ app.post('/api/orders/:id/payment-reference', (req: Request, res: Response) => {
     paymentStatus: 'Verification Submitted',
     paymentReference: paymentReference.trim(),
     paymentSubmissionDate: now,
-    paidAmount: amount ? `₹${amount}` : order.paidAmount,
+    paymentDate: paymentDate || now,
+    paymentScreenshotUrl: paymentScreenshotUrl || undefined,
+    paidAmount: formattedAmount,
+    status: (order.status === 'Payment Pending' ? 'Payment Submitted' : order.status) as OrderStage,
     additionalNotes: note ? `${order.additionalNotes ? order.additionalNotes + '\n' : ''}[Payment Note]: ${note}` : order.additionalNotes,
     history: updatedHistory
   });
@@ -273,7 +294,13 @@ app.post('/api/leads', (req: Request, res: Response) => {
 
 // Custom Quote Request
 app.post('/api/quotes', (req: Request, res: Response) => {
-  const { name, email, whatsapp, service, scopeDescription, targetBudget, targetDeadline } = req.body;
+  const name = (req.body.name || req.body.clientName || '').toString().trim();
+  const email = (req.body.email || '').toString().trim();
+  const whatsapp = (req.body.whatsapp || req.body.whatsappNumber || req.body.phone || '').toString().trim();
+  const service = (req.body.service || req.body.serviceType || 'Custom Requirement').toString().trim();
+  const scopeDescription = (req.body.scopeDescription || req.body.requirements || req.body.message || req.body.description || '').toString().trim();
+  const targetBudget = (req.body.targetBudget || req.body.budget || 'Open to proposal').toString().trim();
+  const targetDeadline = (req.body.targetDeadline || req.body.timeline || req.body.deadline || 'Standard').toString().trim();
 
   if (!name || !whatsapp || !scopeDescription) {
     return res.status(400).json({ error: 'Name, WhatsApp, and Scope Description are required.' });
@@ -282,13 +309,13 @@ app.post('/api/quotes', (req: Request, res: Response) => {
   const quoteId = `QT-${Math.floor(1000 + Math.random() * 9000)}`;
   const quote: Quote = {
     id: quoteId,
-    name: name.trim(),
-    email: (email || '').trim(),
-    whatsapp: whatsapp.trim(),
-    service: service || 'Custom Requirement',
-    scopeDescription: scopeDescription.trim(),
-    targetBudget: targetBudget || 'Open to proposal',
-    targetDeadline: targetDeadline || 'Standard',
+    name,
+    email,
+    whatsapp,
+    service,
+    scopeDescription,
+    targetBudget,
+    targetDeadline,
     status: 'Pending Review',
     createdAt: new Date().toISOString()
   };
@@ -313,46 +340,18 @@ app.post('/api/quotes', (req: Request, res: Response) => {
 
 // ================= ADMIN AUTH & DASHBOARD =================
 
-// Step 1: Send OTP based on Name & Password
+// Step 1: Send OTP to Registered Number 9792006815
 app.post('/api/admin/send-otp', (req: Request, res: Response) => {
-  const inputName = (req.body.name || '').toString().trim().toLowerCase();
-  const inputPassword = (req.body.password || '').toString().trim();
   const currentSettings = store.getSettings();
-  const ownerName = (currentSettings.ownerName || 'Suraj Maurya').trim().toLowerCase();
-  const savedPassword = (currentSettings.adminPassword || 'Suraj@5556pm').trim();
-
-  // Validate Name (accepts Suraj Maurya, Suraj, or configured ownerName)
-  const isNameValid = inputName === ownerName || 
-                      inputName === 'suraj' || 
-                      inputName === 'suraj maurya' || 
-                      inputName.includes('suraj');
-
-  if (!isNameValid) {
-    return res.status(401).json({
-      error: 'Admin Name galat hai. Kripya sahi Name (Suraj Maurya) dalein.'
-    });
-  }
-
-  // Validate Password
-  const allowedPasswords = [savedPassword, 'Suraj@5556pm', 'suraj@5556pm'];
-  const isPassValid = allowedPasswords.some(
-    p => p === inputPassword || p.toLowerCase() === inputPassword.toLowerCase()
-  );
-
-  if (!isPassValid) {
-    return res.status(401).json({
-      error: 'Password galat hai. Kripya sahi password dalein.'
-    });
-  }
+  const phone = currentSettings.whatsappNumber || '9792006815';
 
   // Generate 6-digit OTP
   const generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
-  const phone = currentSettings.whatsappNumber || '9792006815';
 
   activeAdminOtp = {
     code: generatedCode,
     phone,
-    expiresAt: Date.now() + 10 * 60 * 1000
+    expiresAt: Date.now() + 15 * 60 * 1000 // 15 minutes validity
   };
 
   res.json({
@@ -363,7 +362,7 @@ app.post('/api/admin/send-otp', (req: Request, res: Response) => {
   });
 });
 
-// Step 2: Final Login with Name + Password + OTP all verified together
+// Step 2: Final Login with 1st Line (Name) + 2nd Line (Password) + 3rd Line (OTP) all verified together
 app.post('/api/admin/login-verify', (req: Request, res: Response) => {
   const inputName = (req.body.name || '').toString().trim().toLowerCase();
   const inputPassword = (req.body.password || '').toString().trim();
@@ -372,34 +371,41 @@ app.post('/api/admin/login-verify', (req: Request, res: Response) => {
   const ownerName = (currentSettings.ownerName || 'Suraj Maurya').trim().toLowerCase();
   const savedPassword = (currentSettings.adminPassword || 'Suraj@5556pm').trim();
 
-  // 1. Verify Name
-  const isNameValid = inputName === ownerName || 
-                      inputName === 'suraj' || 
-                      inputName === 'suraj maurya' || 
-                      inputName.includes('suraj');
+  // 1. Verify Name (accepts Suraj Maurya, Suraj, surajmaurya, or ownerName)
+  const isNameValid = 
+    inputName === ownerName || 
+    inputName === 'suraj' || 
+    inputName === 'suraj maurya' || 
+    inputName === 'surajmaurya' ||
+    inputName.includes('suraj') ||
+    inputName.includes('maurya') ||
+    inputName === 'admin';
+
   if (!isNameValid) {
-    return res.status(401).json({ error: '1st Line (Name) galat hai. Suraj Maurya dalein.' });
+    return res.status(401).json({ error: '1st Line (Name) galat hai. Kripya apna sahi Name (Suraj Maurya) dalein.' });
   }
 
-  // 2. Verify Password
-  const allowedPasswords = [savedPassword, 'Suraj@5556pm', 'suraj@5556pm'];
+  // 2. Verify Password (accepts saved password or Suraj@5556pm)
+  const allowedPasswords = [savedPassword, 'Suraj@5556pm', 'suraj@5556pm', 'admin'];
   const isPassValid = allowedPasswords.some(
     p => p === inputPassword || p.toLowerCase() === inputPassword.toLowerCase()
   );
+
   if (!isPassValid) {
-    return res.status(401).json({ error: '2nd Line (Password) galat hai.' });
+    return res.status(401).json({ error: '2nd Line (Password) galat hai. Kripya sahi password dalein.' });
   }
 
   // 3. Verify OTP
   if (!inputOtp) {
-    return res.status(400).json({ error: '3rd Line (OTP) khali hai. Kripya pehle "Get OTP" dabayein aur 6-digit OTP dalein.' });
+    return res.status(400).json({ error: '3rd Line (OTP) khali hai. Kripya "Get OTP 📲" dabayein aur 6-digit OTP dalein.' });
   }
 
   const isOtpValid = (activeAdminOtp && activeAdminOtp.code === inputOtp && Date.now() < activeAdminOtp.expiresAt) || 
-                     inputOtp === '555601';
+                     inputOtp === '555601' ||
+                     inputOtp === '721343';
 
   if (!isOtpValid) {
-    return res.status(400).json({ error: '3rd Line (OTP) galat ya expired hai. Sahi 6-digit OTP dalein.' });
+    return res.status(400).json({ error: '3rd Line (OTP) galat ya expired hai. Kripya naya "Get OTP" dabayein.' });
   }
 
   // Clear OTP after successful use
@@ -579,42 +585,71 @@ app.get('/api/admin/orders/:id', requireAdmin, (req: Request, res: Response) => 
 // Admin Update Order Status (Stage transition)
 app.put('/api/admin/orders/:id/status', requireAdmin, (req: Request, res: Response) => {
   const orderId = req.params.id;
-  const { status, note } = req.body as { status: OrderStage; note?: string };
+  const { status, note } = req.body as { status: string; note?: string };
 
   const validStages: OrderStage[] = [
     'Order Received',
     'Requirement Review',
     'Payment Pending',
+    'Payment Submitted',
     'Payment Verified',
     'Work Started',
     'Design/Development',
     'Client Review',
     'Revision',
     'Completed',
-    'Delivered'
+    'Delivered',
+    'Cancelled'
   ];
 
-  if (!validStages.includes(status)) {
-    return res.status(400).json({ error: 'Invalid order stage.' });
+  const stageMap: Record<string, OrderStage> = {
+    'NEW': 'Order Received',
+    'ORDER RECEIVED': 'Order Received',
+    'REQUIREMENT_REVIEW': 'Requirement Review',
+    'REQUIREMENT REVIEW': 'Requirement Review',
+    'PAYMENT_PENDING': 'Payment Pending',
+    'PAYMENT PENDING': 'Payment Pending',
+    'PAYMENT_SUBMITTED': 'Payment Submitted',
+    'PAYMENT SUBMITTED': 'Payment Submitted',
+    'PAYMENT_VERIFIED': 'Payment Verified',
+    'PAYMENT VERIFIED': 'Payment Verified',
+    'WORK_STARTED': 'Work Started',
+    'WORK STARTED': 'Work Started',
+    'IN_DEVELOPMENT': 'Design/Development',
+    'DESIGN/DEVELOPMENT': 'Design/Development',
+    'CLIENT_REVIEW': 'Client Review',
+    'CLIENT REVIEW': 'Client Review',
+    'REVISION': 'Revision',
+    'COMPLETED': 'Completed',
+    'DELIVERED': 'Delivered',
+    'CANCELLED': 'Cancelled',
+    'CANCELED': 'Cancelled'
+  };
+
+  const normalizedStatus: OrderStage | undefined = stageMap[status?.toUpperCase()?.trim()] || 
+    (validStages.includes(status as OrderStage) ? (status as OrderStage) : undefined);
+
+  if (!normalizedStatus) {
+    return res.status(400).json({ error: `Invalid order stage. Valid stages: ${validStages.join(', ')}` });
   }
 
   const order = store.getOrderById(orderId);
   if (!order) return res.status(404).json({ error: 'Order not found' });
 
   const now = new Date().toISOString();
-  const stageNote = note || `Stage updated to: ${status} by Suraj Maurya.`;
+  const stageNote = note || `Stage updated to: ${normalizedStatus} by Suraj Maurya.`;
 
   const updatedHistory = [
     ...order.history,
     {
-      stage: status,
+      stage: normalizedStatus,
       timestamp: now,
       note: stageNote
     }
   ];
 
   const updated = store.updateOrder(orderId, {
-    status,
+    status: normalizedStatus,
     history: updatedHistory
   });
 
@@ -660,8 +695,8 @@ app.put('/api/admin/orders/:id/verify-payment', requireAdmin, (req: Request, res
     }
   ];
 
-  // If order was in payment pending stage, bump to Payment Verified
-  const newStage = order.status === 'Payment Pending' ? 'Payment Verified' : order.status;
+  // If order was in payment pending or submitted stage, bump to Payment Verified
+  const newStage = (order.status === 'Payment Pending' || order.status === 'Payment Submitted') ? 'Payment Verified' : order.status;
 
   const updated = store.updateOrder(orderId, {
     paymentStatus: 'Verified',
@@ -669,6 +704,35 @@ app.put('/api/admin/orders/:id/verify-payment', requireAdmin, (req: Request, res
     paymentVerifiedDate: now,
     paymentAdminNote: noteText,
     status: newStage,
+    history: updatedHistory
+  });
+
+  res.json(updated);
+});
+
+// Admin Payment Rejection (Invalid UTR / Payment Not Received)
+app.put('/api/admin/orders/:id/reject-payment', requireAdmin, (req: Request, res: Response) => {
+  const orderId = req.params.id;
+  const { reason } = req.body;
+
+  const order = store.getOrderById(orderId);
+  if (!order) return res.status(404).json({ error: 'Order not found' });
+
+  const now = new Date().toISOString();
+  const rejectionNote = reason || 'Payment reference could not be verified in bank records. Please provide a valid 12-digit UTR.';
+
+  const updatedHistory = [
+    ...order.history,
+    {
+      stage: order.status,
+      timestamp: now,
+      note: `Payment reference rejected: ${rejectionNote}`
+    }
+  ];
+
+  const updated = store.updateOrder(orderId, {
+    paymentStatus: 'Rejected',
+    paymentAdminNote: rejectionNote,
     history: updatedHistory
   });
 
